@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  teacher
+  coach
+  admin
+}
+
+enum RecordingStatus {
+  uploading
+  processing
+  completed
+  failed
+}
+
+enum ReportStatus {
+  processing
+  completed
+  failed
+}
+
+enum GoalStatus {
+  active
+  completed
+  paused
+}
+
+model User {
+  id                 String            @id @default(uuid()) @db.Uuid
+  email              String            @unique
+  name               String
+  role               UserRole          @default(teacher)
+  avatarUrl          String?
+  voiceEnrollmentUrl String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  recordings         LessonRecording[]
+  reports            LessonReport[]
+  goals              Goal[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model LessonRecording {
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @db.Uuid
+  audioUrl        String
+  durationSeconds Int
+  fileSizeBytes   Int
+  status          RecordingStatus @default(uploading)
+  title           String?
+  recordedAt      DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  report          LessonReport?
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("lesson_recordings")
+}
+
+model LessonReport {
+  id                 String          @id @default(uuid()) @db.Uuid
+  recordingId        String          @unique @db.Uuid
+  userId             String          @db.Uuid
+  summary            Json
+  highlightedMoments Json
+  reflectionPrompts  Json
+  status             ReportStatus    @default(processing)
+  createdAt          DateTime        @default(now())
+  recording          LessonRecording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transcript         Transcript?
+  insights           Insight[]
+  goalProgress       GoalProgress[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("lesson_reports")
+}
+
+model Transcript {
+  id       String       @id @default(uuid()) @db.Uuid
+  reportId String       @unique @db.Uuid
+  segments Json
+  fullText String
+  report   LessonReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@map("transcripts")
+}
+
+model Insight {
+  id         String       @id @default(uuid()) @db.Uuid
+  reportId   String       @db.Uuid
+  type       String
+  startMs    Int
+  endMs      Int
+  durationMs Int
+  metadata   Json         @default("{}")
+  createdAt  DateTime     @default(now())
+  report     LessonReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, type])
+  @@map("insights")
+}
+
+model Goal {
+  id           String         @id @default(uuid()) @db.Uuid
+  userId       String         @db.Uuid
+  practiceArea String
+  targetMetric String
+  customLabel  String?
+  status       GoalStatus     @default(active)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progress     GoalProgress[]
+
+  @@index([userId, status])
+  @@map("goals")
+}
+
+model GoalProgress {
+  id        String       @id @default(uuid()) @db.Uuid
+  goalId    String       @db.Uuid
+  reportId  String       @db.Uuid
+  value     Float
+  createdAt DateTime     @default(now())
+  goal      Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  report    LessonReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, reportId])
+  @@map("goal_progress")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  action       String
+  resourceType String
+  resourceId   String   @db.Uuid
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
