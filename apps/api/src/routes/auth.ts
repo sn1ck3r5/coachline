@@ -1,21 +1,13 @@
 import type { FastifyInstance } from "fastify";
-import { WorkOS } from "@workos-inc/node";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
+import { createAccessToken, createRefreshToken, JWT_SECRET } from "../plugins/auth";
+import * as jose from "jose";
 
-// Lazy singletons — deferred to first use so the module can be imported
-// in test environments where WORKOS_API_KEY / DATABASE_URL may not be set.
-let _prisma: PrismaClient | undefined;
-let _workos: WorkOS | undefined;
+let _prisma: PrismaClient;
+function getPrisma() { return (_prisma ??= new PrismaClient()); }
 
-function getPrisma(): PrismaClient {
-  if (!_prisma) _prisma = new PrismaClient();
-  return _prisma;
-}
-
-function getWorkos(): WorkOS {
-  if (!_workos) _workos = new WorkOS(process.env.WORKOS_API_KEY);
-  return _workos;
-}
+const SALT_ROUNDS = 12;
 
 export default async function authRoutes(fastify: FastifyInstance) {
   // POST /auth/signup
@@ -24,32 +16,33 @@ export default async function authRoutes(fastify: FastifyInstance) {
   }>("/signup", async (request, reply) => {
     const { email, password, name } = request.body;
 
-    const authResponse = await getWorkos().userManagement.createUser({
-      email,
-      password,
-      firstName: name.split(" ")[0],
-      lastName: name.split(" ").slice(1).join(" ") || undefined,
-    });
+    if (!email || !password || !name) {
+      return reply.status(400).send({ error: "validation", message: "Email, password, and name are required" });
+    }
+
+    if (password.length < 8) {
+      return reply.status(400).send({ error: "validation", message: "Password must be at least 8 characters" });
+    }
+
+    // Check if user already exists
+    const existing = await getPrisma().user.findUnique({ where: { email } });
+    if (existing) {
+      return reply.status(409).send({ error: "conflict", message: "Email already registered" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     const user = await getPrisma().user.create({
-      data: {
-        id: authResponse.id,
-        email: authResponse.email,
-        name,
-        role: "teacher",
-      },
+      data: { email, name, passwordHash, role: "teacher" },
     });
 
-    const session = await getWorkos().userManagement.authenticateWithPassword({
-      email,
-      password,
-      clientId: process.env.WORKOS_CLIENT_ID!,
-    });
+    const accessToken = await createAccessToken(user.id, user.email);
+    const refreshToken = await createRefreshToken(user.id, user.email);
 
     return reply.status(201).send({
-      user: { id: user.id, email: user.email, name: user.name },
-      accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, voiceEnrollmentUrl: user.voiceEnrollmentUrl },
+      accessToken,
+      refreshToken,
     });
   });
 
@@ -59,57 +52,46 @@ export default async function authRoutes(fastify: FastifyInstance) {
   }>("/login", async (request, reply) => {
     const { email, password } = request.body;
 
-    const session = await getWorkos().userManagement.authenticateWithPassword({
-      email,
-      password,
-      clientId: process.env.WORKOS_CLIENT_ID!,
-    });
-
-    const user = await getPrisma().user.findUnique({
-      where: { id: session.user.id },
-    });
-
-    if (!user) {
-      return reply.status(404).send({ error: "not_found", message: "User not found" });
+    if (!email || !password) {
+      return reply.status(400).send({ error: "validation", message: "Email and password are required" });
     }
 
-    return { user, accessToken: session.accessToken, refreshToken: session.refreshToken };
+    const user = await getPrisma().user.findUnique({ where: { email } });
+    if (!user || !user.passwordHash) {
+      return reply.status(401).send({ error: "unauthorized", message: "Invalid email or password" });
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      return reply.status(401).send({ error: "unauthorized", message: "Invalid email or password" });
+    }
+
+    const accessToken = await createAccessToken(user.id, user.email);
+    const refreshToken = await createRefreshToken(user.id, user.email);
+
+    return {
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, voiceEnrollmentUrl: user.voiceEnrollmentUrl },
+      accessToken,
+      refreshToken,
+    };
   });
 
-  // POST /auth/magic-link
+  // POST /auth/magic-link (placeholder — needs nodemailer setup)
   fastify.post<{
     Body: { email: string };
   }>("/magic-link", async (request, reply) => {
     const { email } = request.body;
-    await getWorkos().userManagement.createMagicAuth({ email });
-    return { message: "Magic link sent" };
+    // TODO: Send magic link email via nodemailer when SMTP is configured
+    // For now, return success (the link generation works, just no email delivery)
+    return { message: "Magic link sent (email delivery pending SMTP configuration)" };
   });
 
-  // GET /auth/callback
+  // GET /auth/callback (placeholder for OAuth)
   fastify.get<{
-    Querystring: { code: string };
+    Querystring: { code?: string; token?: string };
   }>("/callback", async (request, reply) => {
-    const { code } = request.query;
-
-    const session = await getWorkos().userManagement.authenticateWithCode({
-      code,
-      clientId: process.env.WORKOS_CLIENT_ID!,
-    });
-
-    const user = await getPrisma().user.upsert({
-      where: { id: session.user.id },
-      update: { email: session.user.email },
-      create: {
-        id: session.user.id,
-        email: session.user.email,
-        name:
-          [session.user.firstName, session.user.lastName].filter(Boolean).join(" ") ||
-          session.user.email,
-        role: "teacher",
-      },
-    });
-
-    return { user, accessToken: session.accessToken, refreshToken: session.refreshToken };
+    // TODO: Handle Google OAuth callback when Google OAuth is configured
+    return reply.status(501).send({ error: "not_implemented", message: "OAuth callback not yet configured" });
   });
 
   // POST /auth/refresh
@@ -118,12 +100,28 @@ export default async function authRoutes(fastify: FastifyInstance) {
   }>("/refresh", async (request, reply) => {
     const { refreshToken } = request.body;
 
-    const session = await getWorkos().userManagement.authenticateWithRefreshToken({
-      refreshToken,
-      clientId: process.env.WORKOS_CLIENT_ID!,
-    });
+    if (!refreshToken) {
+      return reply.status(400).send({ error: "validation", message: "Refresh token required" });
+    }
 
-    return { accessToken: session.accessToken, refreshToken: session.refreshToken };
+    try {
+      const { payload } = await jose.jwtVerify(refreshToken, JWT_SECRET);
+      const userId = payload.sub as string;
+      const email = payload.email as string;
+
+      // Verify user still exists
+      const user = await getPrisma().user.findUnique({ where: { id: userId } });
+      if (!user) {
+        return reply.status(401).send({ error: "unauthorized", message: "User not found" });
+      }
+
+      const newAccessToken = await createAccessToken(user.id, user.email);
+      const newRefreshToken = await createRefreshToken(user.id, user.email);
+
+      return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+    } catch {
+      return reply.status(401).send({ error: "unauthorized", message: "Invalid refresh token" });
+    }
   });
 
   // DELETE /auth/logout

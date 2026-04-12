@@ -12,9 +12,9 @@ declare module "fastify" {
   }
 }
 
-async function authPlugin(fastify: FastifyInstance) {
-  const WORKOS_CLIENT_ID = process.env.WORKOS_CLIENT_ID;
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "coachline-dev-secret-change-in-production");
 
+async function authPlugin(fastify: FastifyInstance) {
   fastify.decorateRequest("userId", "");
   fastify.decorateRequest("userEmail", "");
 
@@ -29,10 +29,7 @@ async function authPlugin(fastify: FastifyInstance) {
       const token = authHeader.slice(7);
 
       try {
-        const JWKS = jose.createRemoteJWKSet(
-          new URL(`https://api.workos.com/sso/jwks/${WORKOS_CLIENT_ID}`)
-        );
-        const { payload } = await jose.jwtVerify(token, JWKS);
+        const { payload } = await jose.jwtVerify(token, JWT_SECRET);
         request.userId = payload.sub as string;
         request.userEmail = payload.email as string;
       } catch {
@@ -43,3 +40,20 @@ async function authPlugin(fastify: FastifyInstance) {
 }
 
 export default fp(authPlugin);
+
+// Helper to create tokens — exported for use by auth routes
+export async function createAccessToken(userId: string, email: string): Promise<string> {
+  return new jose.SignJWT({ sub: userId, email })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("15m")
+    .sign(JWT_SECRET);
+}
+
+export async function createRefreshToken(userId: string, email: string): Promise<string> {
+  return new jose.SignJWT({ sub: userId, email })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("7d")
+    .sign(JWT_SECRET);
+}
+
+export { JWT_SECRET };
