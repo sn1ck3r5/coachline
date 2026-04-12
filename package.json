@@ -1,0 +1,27 @@
+{
+  "name": "coachline",
+  "private": true,
+  "packageManager": "npm@10.9.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0",
+    "prettier": "^3.4.0"
+  }
+}
