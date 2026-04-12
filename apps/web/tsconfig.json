@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@coachline/shared": ["../../packages/shared/src"]
     }
   },
   "include": [
