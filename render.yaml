@@ -50,6 +50,7 @@ services:
     plan: free
     region: oregon
     maxmemoryPolicy: noeviction
+    ipAllowList: []
 
 databases:
   - name: coachline-db
