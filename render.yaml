@@ -14,7 +14,7 @@ services:
           property: connectionString
       - key: REDIS_URL
         fromService:
-          name: coachline-redis-2-2
+          name: coachline-redis-2
           type: redis
           property: connectionString
       - key: NODE_ENV
@@ -51,7 +51,7 @@ services:
           property: connectionString
       - key: REDIS_URL
         fromService:
-          name: coachline-redis-2-2
+          name: coachline-redis-2
           type: redis
           property: connectionString
       - key: NODE_ENV
