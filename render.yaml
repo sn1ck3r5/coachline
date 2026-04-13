@@ -27,8 +27,6 @@ services:
         value: us-east-1
       - key: S3_BUCKET_NAME
         value: coachline-audio
-      - key: BEDROCK_REGION
-        value: us-east-1
       - key: WEB_URL
         sync: false
 
