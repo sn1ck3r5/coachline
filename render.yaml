@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
-    startCommand: npx prisma migrate deploy --schema=prisma/schema.prisma && npx tsx apps/api/src/server.ts
+    startCommand: npx tsx apps/api/src/server.ts
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -42,7 +42,7 @@ services:
     region: oregon
     plan: free
     buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
-    startCommand: npx prisma migrate deploy --schema=prisma/schema.prisma && npx tsx apps/worker/src/index.ts
+    startCommand: npx tsx apps/worker/src/index.ts
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
