@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     nodeVersion: "20.18.0"
-    buildCommand: npm ci && npx prisma generate --schema=prisma/schema.prisma && cd apps/api && npx tsc
+    buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma && cd packages/shared && npx tsc && cd ../../apps/api && npx tsc
     startCommand: node apps/api/dist/server.js
     healthCheckPath: /health
     envVars:
@@ -37,7 +37,7 @@ services:
     region: oregon
     plan: free
     nodeVersion: "20.18.0"
-    buildCommand: npm ci && cd apps/web && npx next build
+    buildCommand: npm ci --include=dev && cd apps/web && npx next build
     startCommand: cd apps/web && npx next start
     envVars:
       - key: NEXT_PUBLIC_API_URL
