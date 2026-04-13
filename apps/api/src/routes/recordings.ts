@@ -14,10 +14,13 @@ export default async function recordingRoutes(fastify: FastifyInstance) {
 
   // POST /recordings/upload-url — get presigned S3 URL
   fastify.post<{ Body: { contentType: string; fileName: string } }>("/upload-url", async (request, reply) => {
-    const parsed = UploadUrlSchema.safeParse(request.body);
+    // Strip codec parameters (e.g., "video/mp4; codecs=avc1.42000a,mp4a.40.2" → "video/mp4")
+    const baseContentType = (request.body.contentType || "").split(";")[0].trim();
+    const parsed = UploadUrlSchema.safeParse({ ...request.body, contentType: baseContentType });
     if (!parsed.success) return reply.status(400).send({ error: "validation", message: parsed.error.message });
     const key = `recordings/${request.userId}/${randomUUID()}/${parsed.data.fileName}`;
-    const { url, expiresAt } = await getUploadUrl(key, parsed.data.contentType);
+    // Use the original content type (with codecs) for S3 so playback works correctly
+    const { url, expiresAt } = await getUploadUrl(key, request.body.contentType);
     return { url, key, expiresAt: expiresAt.toISOString() };
   });
 
