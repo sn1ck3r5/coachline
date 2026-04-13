@@ -7,7 +7,8 @@ const client = new BedrockRuntimeClient({
   region: process.env.BEDROCK_REGION || "us-east-1",
 });
 
-const MODEL_ID = "anthropic.claude-sonnet-4-20250514";
+// Use env var for model ID so it can be configured per-environment
+const MODEL_ID = process.env.BEDROCK_MODEL_ID || "anthropic.claude-3-5-sonnet-20241022-v2:0";
 
 interface BedrockMessage {
   role: "user" | "assistant";
