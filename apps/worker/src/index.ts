@@ -1,9 +1,25 @@
 import { Worker } from "bullmq";
+import { createServer } from "http";
 import { processLesson } from "./pipeline/orchestrator";
 import { PrismaClient } from "@prisma/client";
 
 let _prisma: PrismaClient;
 function getPrisma() { return (_prisma ??= new PrismaClient()); }
+
+// Health check HTTP server (required for Render free tier — runs as web service)
+const PORT = parseInt(process.env.PORT || "3002");
+const healthServer = createServer((req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok", service: "worker" }));
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
+healthServer.listen(PORT, "0.0.0.0", () => {
+  console.log("Worker health server listening on port %d", PORT);
+});
 
 const redisUrl = new URL(process.env.REDIS_URL || "redis://localhost:6379");
 const connection = {

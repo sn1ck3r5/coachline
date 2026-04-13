@@ -30,13 +30,14 @@ services:
       - key: WEB_URL
         sync: false
 
-  - type: worker
+  - type: web
     name: coachline-worker
     runtime: node
     region: oregon
     plan: free
     buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
     startCommand: npx prisma migrate deploy --schema=prisma/schema.prisma && npx tsx apps/worker/src/index.ts
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
         fromDatabase:
