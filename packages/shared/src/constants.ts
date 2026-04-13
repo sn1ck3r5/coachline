@@ -26,3 +26,11 @@ export const MAX_RECORDING_SECONDS = 5400; // 90 minutes
 export const SUPPORTED_AUDIO_FORMATS = [
   "audio/mpeg", "audio/wav", "audio/x-m4a", "audio/mp4", "audio/aac", "audio/ogg",
 ] as const;
+
+export const SUPPORTED_VIDEO_FORMATS = [
+  "video/mp4", "video/webm", "video/quicktime",
+] as const;
+
+export const SUPPORTED_MEDIA_FORMATS = [
+  ...SUPPORTED_AUDIO_FORMATS, ...SUPPORTED_VIDEO_FORMATS,
+] as const;

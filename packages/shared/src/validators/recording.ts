@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_RECORDING_SECONDS, SUPPORTED_AUDIO_FORMATS } from "../constants";
+import { MAX_RECORDING_SECONDS, SUPPORTED_MEDIA_FORMATS } from "../constants";
 
 export const CreateRecordingSchema = z.object({
   audioUrl: z.string().min(1),
@@ -10,7 +10,7 @@ export const CreateRecordingSchema = z.object({
 export type CreateRecordingInput = z.infer<typeof CreateRecordingSchema>;
 
 export const UploadUrlSchema = z.object({
-  contentType: z.enum(SUPPORTED_AUDIO_FORMATS),
+  contentType: z.enum(SUPPORTED_MEDIA_FORMATS),
   fileName: z.string().min(1),
 });
 export type UploadUrlInput = z.infer<typeof UploadUrlSchema>;

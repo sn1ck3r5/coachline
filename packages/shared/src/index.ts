@@ -8,6 +8,8 @@ export {
   SEGMENT_TYPES,
   MAX_RECORDING_SECONDS,
   SUPPORTED_AUDIO_FORMATS,
+  SUPPORTED_VIDEO_FORMATS,
+  SUPPORTED_MEDIA_FORMATS,
 } from "./constants";
 export type {
   InsightType,
