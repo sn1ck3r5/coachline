@@ -4,8 +4,8 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma && cd packages/shared && npx tsc && cd ../../apps/api && npx tsc
-    startCommand: node apps/api/dist/server.js
+    buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
+    startCommand: npx tsx apps/api/src/server.ts
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
