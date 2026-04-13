@@ -30,6 +30,38 @@ services:
       - key: WEB_URL
         sync: false
 
+  - type: worker
+    name: coachline-worker
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
+    startCommand: npx prisma migrate deploy --schema=prisma/schema.prisma && npx tsx apps/worker/src/index.ts
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coachline-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: coachline-redis
+          type: redis
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        value: us-west-1
+      - key: S3_BUCKET_NAME
+        value: coachline-resources-722580582856-us-west-1-an
+      - key: BEDROCK_REGION
+        value: us-west-2
+
   - type: web
     name: coachline-web
     runtime: node
