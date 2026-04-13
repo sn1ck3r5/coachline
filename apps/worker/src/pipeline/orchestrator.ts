@@ -3,6 +3,7 @@ import { transcribeLesson } from "./transcribe";
 import { classifySegments } from "./classify";
 import { analyzeTranscript } from "./analyze";
 import { generateReport } from "./report";
+import { getPresignedUrl } from "../services/s3";
 
 let _prisma: PrismaClient;
 function getPrisma() { return (_prisma ??= new PrismaClient()); }
@@ -15,8 +16,11 @@ export async function processLesson(data: {
   const { recordingId, userId, audioUrl } = data;
   const prisma = getPrisma();
 
+  // Generate a presigned URL so Deepgram can fetch the audio from S3
+  const presignedAudioUrl = await getPresignedUrl(audioUrl);
+
   // Stage 1: Transcription + Diarization
-  const transcription = await transcribeLesson(audioUrl);
+  const transcription = await transcribeLesson(presignedAudioUrl);
 
   // Stage 2: Segment Classification
   const classification = classifySegments(
