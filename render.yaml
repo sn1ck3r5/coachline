@@ -4,7 +4,6 @@ services:
     runtime: node
     region: oregon
     plan: free
-    nodeVersion: "20.18.0"
     buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma && cd packages/shared && npx tsc && cd ../../apps/api && npx tsc
     startCommand: node apps/api/dist/server.js
     healthCheckPath: /health
@@ -36,7 +35,6 @@ services:
     runtime: node
     region: oregon
     plan: free
-    nodeVersion: "20.18.0"
     buildCommand: npm ci --include=dev && cd apps/web && npx next build
     startCommand: cd apps/web && npx next start
     envVars:
