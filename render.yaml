@@ -4,8 +4,9 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: npm ci && npx prisma generate && cd apps/api && npm run build
-    startCommand: cd apps/api && npm start
+    nodeVersion: "20.18.0"
+    buildCommand: npm ci && npx prisma generate --schema=prisma/schema.prisma && cd apps/api && npx tsc
+    startCommand: node apps/api/dist/server.js
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -35,8 +36,9 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: npm ci && cd apps/web && npm run build
-    startCommand: cd apps/web && npm start
+    nodeVersion: "20.18.0"
+    buildCommand: npm ci && cd apps/web && npx next build
+    startCommand: cd apps/web && npx next start
     envVars:
       - key: NEXT_PUBLIC_API_URL
         sync: false
