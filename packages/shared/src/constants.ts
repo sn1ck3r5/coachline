@@ -24,7 +24,7 @@ export type SegmentType = (typeof SEGMENT_TYPES)[number];
 export const MAX_RECORDING_SECONDS = 5400; // 90 minutes
 
 export const SUPPORTED_AUDIO_FORMATS = [
-  "audio/mpeg", "audio/wav", "audio/x-m4a", "audio/mp4", "audio/aac", "audio/ogg",
+  "audio/mpeg", "audio/wav", "audio/x-m4a", "audio/mp4", "audio/aac", "audio/ogg", "audio/webm",
 ] as const;
 
 export const SUPPORTED_VIDEO_FORMATS = [
