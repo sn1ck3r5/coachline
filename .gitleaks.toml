@@ -1,0 +1,5 @@
+[allowlist]
+description = "Allowlist for known false positives"
+paths = [
+  ".env.example"
+]
