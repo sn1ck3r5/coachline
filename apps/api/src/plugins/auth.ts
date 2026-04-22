@@ -12,7 +12,11 @@ declare module "fastify" {
   }
 }
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "coachline-dev-secret-change-in-production");
+if (!process.env.JWT_SECRET) {
+  console.error("FATAL: JWT_SECRET environment variable is required");
+  process.exit(1);
+}
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 async function authPlugin(fastify: FastifyInstance) {
   fastify.decorateRequest("userId", "");

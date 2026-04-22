@@ -1,6 +1,10 @@
 import { Queue } from "bullmq";
 
-const redisUrl = new URL(process.env.REDIS_URL || "redis://localhost:6379");
+if (!process.env.REDIS_URL) {
+  console.error("FATAL: REDIS_URL environment variable is required");
+  process.exit(1);
+}
+const redisUrl = new URL(process.env.REDIS_URL);
 const connection = { host: redisUrl.hostname, port: parseInt(redisUrl.port || "6379") };
 
 export const processingQueue = new Queue("lesson-processing", { connection });
