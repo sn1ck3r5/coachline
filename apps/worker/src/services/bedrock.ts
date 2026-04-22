@@ -2,14 +2,9 @@ const MODEL_ID = process.env.BEDROCK_MODEL_ID || "us.anthropic.claude-sonnet-4-2
 const REGION = process.env.BEDROCK_REGION || "us-west-2";
 
 function getApiKey(): string {
-  const encoded = process.env.BEDROCK_API_KEY;
-  if (!encoded) throw new Error("BEDROCK_API_KEY environment variable is required");
-  // The key may be base64-encoded or plain — try decoding, fall back to plain
-  try {
-    const decoded = Buffer.from(encoded, "base64").toString("utf-8");
-    if (decoded.startsWith("BedrockAPIKey")) return decoded;
-  } catch {}
-  return encoded;
+  const key = process.env.BEDROCK_API_KEY;
+  if (!key) throw new Error("BEDROCK_API_KEY environment variable is required");
+  return key;
 }
 
 interface BedrockMessage {
@@ -36,7 +31,7 @@ export async function invokeClaudeJson<T>(
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "x-api-key": apiKey,
+      "Authorization": `Bearer ${apiKey}`,
     },
     body,
   });
