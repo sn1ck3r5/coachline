@@ -32,9 +32,10 @@ app.register(import("./routes/reports"), { prefix: "/reports" });
 app.register(import("./routes/goals"), { prefix: "/goals" });
 app.register(import("./routes/users"), { prefix: "/users" });
 
-// Next.js fallback — every non-API request goes through the Next request handler.
-// Registered last so Fastify matches API routes first.
-app.all("/*", async (req, reply) => {
+// Next.js fallback — any request that doesn't match an API route is
+// handed to Next.js. Using setNotFoundHandler instead of app.all("/*")
+// avoids colliding with @fastify/cors's OPTIONS preflight registration.
+app.setNotFoundHandler(async (req, reply) => {
   await nextHandler(req.raw, reply.raw);
   reply.hijack();
 });
