@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import type { Goal, LessonReport } from "@coachline/shared";
+import type { Goal, LessonReport, PaginatedResponse } from "@coachline/shared";
 
 interface DashboardData {
   goals: Goal[];
@@ -41,10 +41,10 @@ export default function HomePage() {
     (async () => {
       try {
         const [goalsRes, reportsRes] = await Promise.all([
-          api.get<{ goals: Goal[] }>("/goals?status=active&limit=1"),
-          api.get<{ reports: LessonReport[]; total: number }>("/reports?limit=5"),
+          api.get<PaginatedResponse<Goal>>("/goals?status=active&limit=1"),
+          api.get<PaginatedResponse<LessonReport>>("/reports?limit=5"),
         ]);
-        setData({ goals: goalsRes.goals ?? [], reports: reportsRes.reports ?? [] });
+        setData({ goals: goalsRes.data ?? [], reports: reportsRes.data ?? [] });
       } catch {
         setData({ goals: [], reports: [] });
       } finally {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { LessonReport } from "@coachline/shared";
+import type { LessonReport, PaginatedResponse } from "@coachline/shared";
 
 const PAGE_SIZE = 10;
 
@@ -23,35 +23,40 @@ function formatDuration(ms: number) {
 
 export default function LessonsPage() {
   const [reports, setReports] = useState<LessonReport[]>([]);
-  const [total, setTotal] = useState(0);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
+    const cursor = cursors[page - 1];
+    const qs = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    if (cursor) qs.set("cursor", cursor);
     api
-      .get<{ reports: LessonReport[]; total: number }>(
-        `/reports?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`
-      )
+      .get<PaginatedResponse<LessonReport>>(`/reports?${qs.toString()}`)
       .then((res) => {
-        setReports(res.reports ?? []);
-        setTotal(res.total ?? 0);
+        setReports(res.data ?? []);
+        setHasMore(Boolean(res.hasMore));
+        if (res.cursor && cursors.length === page) {
+          setCursors((prev) => [...prev, res.cursor]);
+        }
       })
       .catch(() => {
         setReports([]);
-        setTotal(0);
+        setHasMore(false);
       })
       .finally(() => setLoading(false));
   }, [page]);
-
-  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Lessons</h1>
-          <p className="text-gray-400 text-sm mt-1">{total} recordings total</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {reports.length} {hasMore ? "+ " : ""}{reports.length === 1 ? "recording" : "recordings"}
+          </p>
         </div>
         <Link
           href="/record"
@@ -146,8 +151,8 @@ export default function LessonsPage() {
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Cursor pagination */}
+          {(page > 1 || hasMore) && (
             <div className="flex items-center justify-center gap-2 mt-8">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -156,12 +161,10 @@ export default function LessonsPage() {
               >
                 ← Prev
               </button>
-              <span className="text-sm text-gray-400">
-                {page} / {totalPages}
-              </span>
+              <span className="text-sm text-gray-400">Page {page}</span>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                disabled={!hasMore}
                 className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-white/10 text-sm text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Next →

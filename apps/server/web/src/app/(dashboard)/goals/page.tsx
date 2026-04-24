@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { Goal } from "@coachline/shared";
+import type { Goal, PaginatedResponse } from "@coachline/shared";
 import { PRACTICE_AREAS } from "@coachline/shared";
 
 const AREA_LABELS: Record<string, string> = {
@@ -62,8 +62,8 @@ export default function GoalsPage() {
 
   const loadGoals = async () => {
     try {
-      const res = await api.get<{ goals: Goal[] }>("/goals");
-      setGoals(res.goals ?? []);
+      const res = await api.get<PaginatedResponse<Goal>>("/goals");
+      setGoals(res.data ?? []);
     } catch {
       setGoals([]);
     } finally {
