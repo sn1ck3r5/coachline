@@ -33,17 +33,29 @@ export async function processLesson(data: {
   const rawInsights = await analyzeTranscript(transcription.segments);
 
   // Stage 4: Report Generation
-  // Fetch active goal if any
-  const activeGoal = await prisma.goal.findFirst({
-    where: { userId, status: "active" },
-    select: { id: true, practiceArea: true, targetMetric: true },
-  });
+  // Fetch active goal + user's target grade in parallel
+  const [activeGoal, user] = await Promise.all([
+    prisma.goal.findFirst({
+      where: { userId, status: "active" },
+      select: { id: true, practiceArea: true, targetMetric: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { targetGrade: true },
+    }),
+  ]);
+
+  const teacherSegments = transcription.segments.filter(
+    (s) => s.speaker === "teacher"
+  );
 
   const { summary, highlightedMoments, reflectionPrompts } = await generateReport({
     insights: rawInsights,
     talkTime: classification.talkTime,
     totalDurationMs: transcription.durationMs,
     activeGoal,
+    teacherSegments,
+    targetGrade: user?.targetGrade ?? null,
   });
 
   // Stage 5: Persist everything in a transaction
@@ -111,6 +123,24 @@ function computeGoalMetric(
       return summary.talkTime.studentPercent;
     case "uptake":
       return summary.uptakeCount;
+    case "dok_mix": {
+      // % of classified questions at DOK 3 or 4 — a higher value means more
+      // questions are demanding strategic or extended thinking.
+      const d = summary.questions?.dok;
+      if (!d) return null;
+      const total = d.level1 + d.level2 + d.level3 + d.level4;
+      if (total === 0) return null;
+      return ((d.level3 + d.level4) / total) * 100;
+    }
+    case "praise_ratio":
+      return summary.praise?.praiseToCorrectionRatio ?? null;
+    case "vocab_match": {
+      // Distance from teacher target grade (0 = on target; positive = talking
+      // above grade level; negative = below). Store absolute delta so goal
+      // progress trends toward 0.
+      const d = summary.vocabGradeLevel?.deltaVsTarget;
+      return typeof d === "number" ? d : null;
+    }
     default:
       return null;
   }

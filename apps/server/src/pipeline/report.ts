@@ -1,5 +1,14 @@
 import { invokeClaudeJson } from "../services/bedrock";
-import type { ReportSummary, HighlightedMoment } from "@coachline/shared";
+import type {
+  ReportSummary,
+  HighlightedMoment,
+  TranscriptSegment,
+  DokDistribution,
+  PraiseSummary,
+  TeacherMovesSummary,
+  VocabGradeLevel,
+} from "@coachline/shared";
+import { computeTeacherFleschKincaid } from "./readability";
 
 interface RawInsight {
   type: string;
@@ -22,6 +31,8 @@ interface GenerateReportInput {
   talkTime: TalkTime;
   totalDurationMs: number;
   activeGoal?: { practiceArea: string; targetMetric: string } | null;
+  teacherSegments: TranscriptSegment[];
+  targetGrade: number | null;
 }
 
 interface GenerateReportResult {
@@ -34,36 +45,111 @@ const SYSTEM_PROMPT = `You are an instructional coach synthesizing lesson analys
 
 Given the raw analysis data, generate:
 
-1. highlightedMoments: The top 3-5 most notable moments from the lesson. Each has:
+1. subject: one of "math", "ela", "science", "social_studies", "other" (best inference from the transcript content; "other" when unclear).
+2. topic: short phrase naming the specific topic taught (e.g. "adding fractions with unlike denominators", "American Revolution causes", "photosynthesis"). Null when the transcript is too short or topic is unclear.
+3. highlightedMoments: top 3-5 notable moments. Each has:
    - title: short label (e.g., "Great uptake at 14:32")
-   - description: 1-2 sentences describing what happened and why it matters
+   - description: 1-2 sentences on what happened and why it matters
    - startMs, endMs: timestamps
    - type: the insight type this relates to
-
-2. reflectionPrompts: 2-3 personalized reflection questions based on the data. These should be specific to what happened in THIS lesson, not generic. Reference actual numbers.
+4. reflectionPrompts: 2-3 personalized reflection questions based on THIS lesson's data. Reference actual numbers or moments. Do not be generic.
 
 If the teacher has an active goal, weight highlights and prompts toward that practice area.
 
-Return JSON with keys: highlightedMoments, reflectionPrompts`;
+Return JSON with exactly these keys: subject, topic, highlightedMoments, reflectionPrompts`;
 
-export async function generateReport(input: GenerateReportInput): Promise<GenerateReportResult> {
-  const { insights, talkTime, totalDurationMs, activeGoal } = input;
+function computeDokDistribution(questions: RawInsight[]): DokDistribution {
+  const dist: DokDistribution = {
+    level1: 0,
+    level2: 0,
+    level3: 0,
+    level4: 0,
+    unclassified: 0,
+  };
+  for (const q of questions) {
+    const raw = (q.metadata as { dokLevel?: unknown }).dokLevel;
+    const level = typeof raw === "number" ? raw : null;
+    if (level === 1) dist.level1++;
+    else if (level === 2) dist.level2++;
+    else if (level === 3) dist.level3++;
+    else if (level === 4) dist.level4++;
+    else dist.unclassified++;
+  }
+  return dist;
+}
 
-  // Compute summary stats from raw insights
+function computePraiseSummary(insights: RawInsight[]): PraiseSummary {
+  const specific = insights.filter((i) => i.type === "praise_specific").length;
+  const general = insights.filter((i) => i.type === "praise_general").length;
+  const correction = insights.filter((i) => i.type === "correction").length;
+  const totalPraise = specific + general;
+  return {
+    specific,
+    general,
+    correction,
+    specificVsGeneralRatio:
+      totalPraise > 0 ? Math.round((specific / totalPraise) * 1000) / 1000 : null,
+    praiseToCorrectionRatio:
+      correction > 0 ? Math.round((totalPraise / correction) * 1000) / 1000 : null,
+  };
+}
+
+function computeTeacherMovesSummary(
+  insights: RawInsight[]
+): TeacherMovesSummary {
+  return {
+    instruct: insights.filter((i) => i.type === "teacher_instruct").length,
+    explain: insights.filter((i) => i.type === "teacher_explain").length,
+    question: insights.filter((i) => i.type.startsWith("question_")).length,
+    feedback: insights.filter((i) => i.type === "teacher_feedback").length,
+    manage: insights.filter((i) => i.type === "teacher_manage").length,
+  };
+}
+
+function computeVocabGradeLevel(
+  teacherSegments: TranscriptSegment[],
+  targetGrade: number | null
+): VocabGradeLevel {
+  const teacherFleschKincaid = computeTeacherFleschKincaid(teacherSegments);
+  const deltaVsTarget =
+    teacherFleschKincaid !== null && targetGrade !== null
+      ? Math.round((teacherFleschKincaid - targetGrade) * 10) / 10
+      : null;
+  return { teacherFleschKincaid, targetGrade, deltaVsTarget };
+}
+
+export async function generateReport(
+  input: GenerateReportInput
+): Promise<GenerateReportResult> {
+  const {
+    insights,
+    talkTime,
+    totalDurationMs,
+    activeGoal,
+    teacherSegments,
+    targetGrade,
+  } = input;
+
   const questions = insights.filter((i) => i.type.startsWith("question_"));
   const waitTime1 = insights.filter((i) => i.type === "wait_time_1");
   const waitTime2 = insights.filter((i) => i.type === "wait_time_2");
   const uptake = insights.filter((i) => i.type === "uptake");
-  const longStudentTalk = insights.filter((i) => i.type === "long_student_talk");
+  const longStudentTalk = insights.filter(
+    (i) => i.type === "long_student_talk"
+  );
 
-  const avgWt1 = waitTime1.length > 0
-    ? waitTime1.reduce((sum, i) => sum + i.durationMs, 0) / waitTime1.length
-    : 0;
-  const avgWt2 = waitTime2.length > 0
-    ? waitTime2.reduce((sum, i) => sum + i.durationMs, 0) / waitTime2.length
-    : 0;
+  const avgWt1 =
+    waitTime1.length > 0
+      ? waitTime1.reduce((sum, i) => sum + i.durationMs, 0) / waitTime1.length
+      : 0;
+  const avgWt2 =
+    waitTime2.length > 0
+      ? waitTime2.reduce((sum, i) => sum + i.durationMs, 0) / waitTime2.length
+      : 0;
 
-  const summary: ReportSummary = {
+  // LLM-derived fields (subject, topic) come from the report call below,
+  // so build the summary without them first, then fold them in.
+  const baseSummary: Omit<ReportSummary, "subject" | "topic"> = {
     talkTime,
     questions: {
       total: questions.length,
@@ -72,6 +158,7 @@ export async function generateReport(input: GenerateReportInput): Promise<Genera
       focusing: questions.filter((q) => q.type === "question_focusing").length,
       procedural: questions.filter((q) => q.type === "question_procedural").length,
       rhetorical: questions.filter((q) => q.type === "question_rhetorical").length,
+      dok: computeDokDistribution(questions),
     },
     waitTime: {
       waitTime1Count: waitTime1.length,
@@ -87,21 +174,37 @@ export async function generateReport(input: GenerateReportInput): Promise<Genera
     longStudentTalkCount: longStudentTalk.length,
     studentQuestionCount: 0, // Deferred to Wave 2 (AI-05)
     totalDurationMs,
+    praise: computePraiseSummary(insights),
+    teacherMoves: computeTeacherMovesSummary(insights),
+    vocabGradeLevel: computeVocabGradeLevel(teacherSegments, targetGrade),
   };
 
-  // Generate highlights and reflection prompts via Claude
+  // Generate subject/topic/highlights/prompts via Claude.
   const dataForClaude = JSON.stringify({
-    summary,
-    insightSamples: insights.slice(0, 30), // Limit context size
+    summary: baseSummary,
+    insightSamples: insights.slice(0, 30),
     activeGoal,
+    targetGrade,
   });
 
-  const { highlightedMoments, reflectionPrompts } = await invokeClaudeJson<{
-    highlightedMoments: HighlightedMoment[];
-    reflectionPrompts: string[];
-  }>(SYSTEM_PROMPT, [
-    { role: "user", content: `Generate the coaching report from this data:\n\n${dataForClaude}` },
-  ]);
+  const { subject, topic, highlightedMoments, reflectionPrompts } =
+    await invokeClaudeJson<{
+      subject: string | null;
+      topic: string | null;
+      highlightedMoments: HighlightedMoment[];
+      reflectionPrompts: string[];
+    }>(SYSTEM_PROMPT, [
+      {
+        role: "user",
+        content: `Generate the coaching report from this data:\n\n${dataForClaude}`,
+      },
+    ]);
+
+  const summary: ReportSummary = {
+    ...baseSummary,
+    subject: subject ?? null,
+    topic: topic ?? null,
+  };
 
   return { summary, highlightedMoments, reflectionPrompts };
 }
