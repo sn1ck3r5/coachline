@@ -31,6 +31,48 @@ function StatBadge({ label, value }: { label: string; value: string | number }) 
   );
 }
 
+function DistributionBar({
+  label,
+  value,
+  max,
+  color,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  color: string;
+}) {
+  const percent = max > 0 ? (value / max) * 100 : 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-gray-400">
+        <span>{label}</span>
+        <span className="font-medium text-white tabular-nums">{value}</span>
+      </div>
+      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${color}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+const SUBJECT_LABELS: Record<string, string> = {
+  math: "Math",
+  ela: "ELA",
+  science: "Science",
+  social_studies: "Social Studies",
+  other: "Other",
+};
+
+function gradeLabel(grade: number | null): string {
+  if (grade === null) return "—";
+  if (grade === 0) return "Kindergarten";
+  return `Grade ${grade}`;
+}
+
 function SegmentBubble({
   segment,
   isPlaying,
@@ -145,6 +187,15 @@ export default function LessonReportPage() {
             })}{" "}
             · {minutes} minutes
           </p>
+          {(report.summary?.subject || report.summary?.topic) && (
+            <p className="text-gray-500 text-xs mt-1">
+              {report.summary?.subject
+                ? SUBJECT_LABELS[report.summary.subject] ?? report.summary.subject
+                : null}
+              {report.summary?.subject && report.summary?.topic ? " · " : null}
+              {report.summary?.topic ?? null}
+            </p>
+          )}
         </div>
         <span
           className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -199,6 +250,138 @@ export default function LessonReportPage() {
               <StatBadge label="Wait Time 2 avg" value={`${Math.round((wt?.waitTime2AvgMs ?? 0) / 1000)}s`} />
             </div>
           </div>
+
+          {/* Question Depth — Webb's DOK distribution */}
+          {q?.dok && (
+            <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+              <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                Question Depth
+              </h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Webb's Depth of Knowledge — higher levels require more reasoning.
+              </p>
+              {(() => {
+                const d = q.dok;
+                const max = Math.max(d.level1, d.level2, d.level3, d.level4, d.unclassified, 1);
+                return (
+                  <div className="space-y-3">
+                    <DistributionBar label="1 · Recall" value={d.level1} max={max} color="bg-violet-400/70" />
+                    <DistributionBar label="2 · Skill/Concept" value={d.level2} max={max} color="bg-violet-500" />
+                    <DistributionBar label="3 · Strategic" value={d.level3} max={max} color="bg-indigo-500" />
+                    <DistributionBar label="4 · Extended" value={d.level4} max={max} color="bg-blue-500" />
+                    {d.unclassified > 0 && (
+                      <DistributionBar label="Unclassified" value={d.unclassified} max={max} color="bg-gray-600" />
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Praise — specific vs general, ratio to correction */}
+          {report.summary?.praise && (
+            <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+              <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                Praise &amp; Correction
+              </h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Specific praise (references a behavior or answer) tends to drive learning
+                more than general affirmations.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatBadge label="Specific praise" value={report.summary.praise.specific} />
+                <StatBadge label="General praise" value={report.summary.praise.general} />
+                <StatBadge label="Corrections" value={report.summary.praise.correction} />
+                <StatBadge
+                  label="Praise : Correction"
+                  value={
+                    report.summary.praise.praiseToCorrectionRatio !== null
+                      ? report.summary.praise.praiseToCorrectionRatio.toFixed(1)
+                      : "—"
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Teacher Moves — distribution of what the teacher was doing */}
+          {report.summary?.teacherMoves && (
+            <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+              <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                Teacher Moves
+              </h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Distribution across the types of teacher talk in this lesson.
+              </p>
+              {(() => {
+                const m = report.summary!.teacherMoves;
+                const max = Math.max(m.instruct, m.explain, m.question, m.feedback, m.manage, 1);
+                return (
+                  <div className="space-y-3">
+                    <DistributionBar label="Explain" value={m.explain} max={max} color="bg-violet-500" />
+                    <DistributionBar label="Question" value={m.question} max={max} color="bg-indigo-500" />
+                    <DistributionBar label="Instruct" value={m.instruct} max={max} color="bg-blue-500" />
+                    <DistributionBar label="Feedback" value={m.feedback} max={max} color="bg-cyan-500" />
+                    <DistributionBar label="Manage" value={m.manage} max={max} color="bg-gray-500" />
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Vocabulary — Flesch-Kincaid vs teacher's target grade */}
+          {report.summary?.vocabGradeLevel && (
+            <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+              <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                Vocabulary
+              </h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Teacher talk readability (Flesch–Kincaid grade level) vs your target grade.
+              </p>
+              {(() => {
+                const v = report.summary!.vocabGradeLevel;
+                if (v.teacherFleschKincaid === null) {
+                  return (
+                    <p className="text-sm text-gray-400">
+                      Not enough teacher speech in this lesson to compute a readability
+                      score.
+                    </p>
+                  );
+                }
+                const delta = v.deltaVsTarget;
+                const deltaColor =
+                  delta === null
+                    ? "text-gray-400"
+                    : Math.abs(delta) <= 1
+                      ? "text-green-400"
+                      : delta > 1
+                        ? "text-amber-400"
+                        : "text-rose-400";
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <StatBadge
+                      label="Teacher FK grade"
+                      value={v.teacherFleschKincaid.toFixed(1)}
+                    />
+                    <StatBadge
+                      label="Target grade"
+                      value={gradeLabel(v.targetGrade)}
+                    />
+                    <div className="bg-[#111] rounded-lg p-3 text-center">
+                      <p className={`text-lg font-bold tabular-nums ${deltaColor}`}>
+                        {delta === null
+                          ? "—"
+                          : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}`}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {delta === null ? "Set target grade in profile" : "vs target"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* Highlighted moments */}
           {report.highlightedMoments?.length > 0 && (

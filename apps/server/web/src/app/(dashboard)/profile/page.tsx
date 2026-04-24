@@ -5,6 +5,12 @@ import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { User } from "@coachline/shared";
 
+const GRADE_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: "Not set" },
+  { value: 0, label: "Kindergarten" },
+  ...Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Grade ${i + 1}` })),
+];
+
 export default function ProfilePage() {
   const { user, signOut, deleteAccount } = useAuth();
   const [fullUser, setFullUser] = useState<User | null>(null);
@@ -14,6 +20,7 @@ export default function ProfilePage() {
   const [enrolling, setEnrolling] = useState(false);
   const [enrollError, setEnrollError] = useState("");
   const [deleteInput, setDeleteInput] = useState("");
+  const [savingGrade, setSavingGrade] = useState(false);
 
   useEffect(() => {
     api
@@ -36,6 +43,17 @@ export default function ProfilePage() {
       setEnrollError(err instanceof Error ? err.message : "Enrollment failed");
     } finally {
       setEnrolling(false);
+    }
+  };
+
+  const handleGradeChange = async (raw: string) => {
+    setSavingGrade(true);
+    try {
+      const value = raw === "null" ? null : parseInt(raw, 10);
+      const updated = await api.patch<User>("/users/me", { targetGrade: value });
+      setFullUser(updated);
+    } finally {
+      setSavingGrade(false);
     }
   };
 
@@ -100,6 +118,39 @@ export default function ProfilePage() {
             <p className="text-white capitalize">{displayUser?.role ?? "teacher"}</p>
           </div>
         </div>
+      </div>
+
+      {/* Teaching preferences */}
+      <div className="bg-[#1a1a1a] rounded-xl p-6 border border-white/5">
+        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-1">
+          Teaching Preferences
+        </h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Used to calibrate lesson-level analytics (e.g. vocabulary grade level).
+        </p>
+        <label className="block text-sm text-gray-400 mb-2">
+          Primary grade level
+        </label>
+        <select
+          value={
+            displayUser?.targetGrade === null ||
+            displayUser?.targetGrade === undefined
+              ? "null"
+              : String(displayUser.targetGrade)
+          }
+          onChange={(e) => handleGradeChange(e.target.value)}
+          disabled={savingGrade}
+          className="w-full sm:w-64 bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+        >
+          {GRADE_OPTIONS.map((opt) => (
+            <option
+              key={opt.value === null ? "null" : String(opt.value)}
+              value={opt.value === null ? "null" : String(opt.value)}
+            >
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Voice enrollment */}

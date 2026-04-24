@@ -38,6 +38,23 @@ function formatDate(isoString: string): string {
   });
 }
 
+const SUBJECT_LABELS: Record<string, string> = {
+  math: "Math",
+  ela: "ELA",
+  science: "Science",
+  social_studies: "Social Studies",
+  other: "Other",
+};
+
+function formatSubjectTopic(
+  subject: string | null | undefined,
+  topic: string | null | undefined
+): string | null {
+  const s = subject ? SUBJECT_LABELS[subject] ?? subject : null;
+  if (s && topic) return `${s} · ${topic}`;
+  return s ?? topic ?? null;
+}
+
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
 export default function LessonReportScreen() {
@@ -125,6 +142,11 @@ export default function LessonReportScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Lesson Report</Text>
           <Text style={styles.date}>{formatDate(report.createdAt)}</Text>
+          {formatSubjectTopic(summary.subject, summary.topic) && (
+            <Text style={styles.subtopic}>
+              {formatSubjectTopic(summary.subject, summary.topic)}
+            </Text>
+          )}
         </View>
 
         {/* ── Talk Time ── */}
@@ -157,6 +179,48 @@ export default function LessonReportScreen() {
               <StatCard
                 value={summary.uptakeCount}
                 label="Uptake Moments"
+              />
+            </View>
+            {summary.questions?.dok && (() => {
+              const d = summary.questions.dok;
+              const classified = d.level1 + d.level2 + d.level3 + d.level4;
+              const deepPct =
+                classified > 0
+                  ? Math.round(((d.level3 + d.level4) / classified) * 100)
+                  : 0;
+              return (
+                <View style={styles.statsRow}>
+                  <StatCard value={`${deepPct}%`} label="DOK 3-4 (Deep)" />
+                  <StatCard
+                    value={summary.praise?.specific ?? 0}
+                    label="Specific Praise"
+                  />
+                </View>
+              );
+            })()}
+            <View style={styles.statsRow}>
+              <StatCard
+                value={
+                  summary.praise?.praiseToCorrectionRatio !== null &&
+                  summary.praise?.praiseToCorrectionRatio !== undefined
+                    ? summary.praise.praiseToCorrectionRatio.toFixed(1)
+                    : "—"
+                }
+                label="Praise : Correction"
+              />
+              <StatCard
+                value={
+                  summary.vocabGradeLevel?.teacherFleschKincaid !== null &&
+                  summary.vocabGradeLevel?.teacherFleschKincaid !== undefined
+                    ? summary.vocabGradeLevel.teacherFleschKincaid.toFixed(1)
+                    : "—"
+                }
+                label={
+                  summary.vocabGradeLevel?.deltaVsTarget !== null &&
+                  summary.vocabGradeLevel?.deltaVsTarget !== undefined
+                    ? `Vocab FK (${summary.vocabGradeLevel.deltaVsTarget > 0 ? "+" : ""}${summary.vocabGradeLevel.deltaVsTarget.toFixed(1)})`
+                    : "Vocab FK"
+                }
               />
             </View>
           </View>
@@ -291,6 +355,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#888",
     marginTop: 4,
+  },
+  subtopic: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
   },
 
   // Section

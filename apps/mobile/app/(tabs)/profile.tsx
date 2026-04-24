@@ -10,13 +10,41 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
+import type { User } from "@coachline/shared";
 import { useAuth } from "../../lib/auth";
 import { api } from "../../lib/api";
+
+const GRADE_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "K" },
+  ...Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: String(i + 1) })),
+];
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const [signingOut, setSigningOut] = React.useState(false);
+  const [targetGrade, setTargetGrade] = React.useState<number | null>(null);
+  const [savingGrade, setSavingGrade] = React.useState(false);
+
+  React.useEffect(() => {
+    api
+      .get<User>("/users/me")
+      .then((u) => setTargetGrade(u.targetGrade ?? null))
+      .catch(() => {});
+  }, []);
+
+  const handleGradeSelect = async (value: number | null) => {
+    if (value === targetGrade) value = null; // tap again to clear
+    setSavingGrade(true);
+    try {
+      const updated = await api.patch<User>("/users/me", { targetGrade: value });
+      setTargetGrade(updated.targetGrade ?? null);
+    } catch {
+      Alert.alert("Error", "Failed to save grade. Please try again.");
+    } finally {
+      setSavingGrade(false);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -107,6 +135,47 @@ export default function ProfileScreen() {
                 <Text style={styles.reEnrollText}>Re-record voice sample →</Text>
               </TouchableOpacity>
             )}
+          </View>
+        </View>
+
+        {/* ── Teaching Preferences ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>TEACHING PREFERENCES</Text>
+          <View style={styles.card}>
+            <View style={styles.gradeHeaderRow}>
+              <Text style={styles.enrollmentTitle}>Primary grade level</Text>
+              <Text style={styles.enrollmentSubtitle}>
+                Used to calibrate lesson analytics (e.g. vocabulary grade level).
+              </Text>
+            </View>
+            <View style={styles.gradeRowWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.gradeRow}
+              >
+                {GRADE_OPTIONS.map((opt) => {
+                  const selected = targetGrade === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[styles.gradePill, selected && styles.gradePillSelected]}
+                      onPress={() => handleGradeSelect(opt.value)}
+                      disabled={savingGrade}
+                    >
+                      <Text
+                        style={[
+                          styles.gradePillLabel,
+                          selected && styles.gradePillLabelSelected,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
           </View>
         </View>
 
@@ -259,6 +328,44 @@ const styles = StyleSheet.create({
   reEnrollText: {
     fontSize: 13,
     color: "#3b82f6",
+  },
+
+  // Grade picker
+  gradeHeaderRow: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  gradeRowWrapper: {
+    paddingHorizontal: 10,
+    paddingBottom: 16,
+  },
+  gradeRow: {
+    paddingHorizontal: 6,
+    gap: 8,
+  },
+  gradePill: {
+    minWidth: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gradePillSelected: {
+    borderColor: "#3b82f6",
+    backgroundColor: "#1e2d4d",
+  },
+  gradePillLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#888",
+  },
+  gradePillLabelSelected: {
+    color: "#fff",
   },
 
   // Action rows
