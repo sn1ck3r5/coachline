@@ -3,10 +3,21 @@ export const INSIGHT_TYPES = [
   "question_procedural", "question_rhetorical",
   "wait_time_1", "wait_time_2", "uptake",
   "long_student_talk", "short_student_response",
+  "praise_specific", "praise_general", "correction",
+  "teacher_instruct", "teacher_explain", "teacher_feedback", "teacher_manage",
 ] as const;
 export type InsightType = (typeof INSIGHT_TYPES)[number];
 
-export const PRACTICE_AREAS = ["wait_time", "open_questions", "student_talk_ratio", "uptake", "custom"] as const;
+export const TEACHER_MOVES = ["instruct", "explain", "question", "feedback", "manage"] as const;
+export type TeacherMove = (typeof TEACHER_MOVES)[number];
+
+export const DOK_LEVELS = [1, 2, 3, 4] as const;
+export type DokLevel = (typeof DOK_LEVELS)[number];
+
+export const PRACTICE_AREAS = [
+  "wait_time", "open_questions", "student_talk_ratio", "uptake",
+  "dok_mix", "praise_ratio", "vocab_match", "custom",
+] as const;
 export type PracticeArea = (typeof PRACTICE_AREAS)[number];
 
 export const RECORDING_STATUSES = ["uploading", "processing", "completed", "failed"] as const;

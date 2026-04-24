@@ -40,6 +40,8 @@ model User {
   role               UserRole          @default(teacher)
   avatarUrl          String?
   voiceEnrollmentUrl String?
+  // 0 = Kindergarten, 1..12 = grade number; null = not set
+  targetGrade        Int?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   recordings         LessonRecording[]

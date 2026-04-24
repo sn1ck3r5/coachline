@@ -1,6 +1,8 @@
 // Constants
 export {
   INSIGHT_TYPES,
+  TEACHER_MOVES,
+  DOK_LEVELS,
   PRACTICE_AREAS,
   RECORDING_STATUSES,
   REPORT_STATUSES,
@@ -13,6 +15,8 @@ export {
 } from "./constants";
 export type {
   InsightType,
+  TeacherMove,
+  DokLevel,
   PracticeArea,
   RecordingStatus,
   ReportStatus,
@@ -30,6 +34,10 @@ export type { LessonRecording } from "./types/recording";
 export type {
   TalkTimeSummary,
   QuestionSummary,
+  DokDistribution,
+  PraiseSummary,
+  TeacherMovesSummary,
+  VocabGradeLevel,
   WaitTimeSummary,
   ReportSummary,
   HighlightedMoment,

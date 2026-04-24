@@ -5,6 +5,7 @@ export interface User {
   role: "teacher" | "coach" | "admin";
   avatarUrl: string | null;
   voiceEnrollmentUrl: string | null;
+  targetGrade: number | null;
   createdAt: string;
   updatedAt: string;
 }
