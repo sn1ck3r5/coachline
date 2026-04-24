@@ -1,4 +1,4 @@
-import type { RecordingStatus } from "../constants";
+import type { RecordingStatus, LessonIntent } from "../constants";
 
 export interface LessonRecording {
   id: string;
@@ -8,6 +8,7 @@ export interface LessonRecording {
   fileSizeBytes: number;
   status: RecordingStatus;
   title: string | null;
+  intent: LessonIntent | null;
   recordedAt: string;
   createdAt: string;
 }

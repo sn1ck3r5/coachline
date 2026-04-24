@@ -50,6 +50,18 @@ export interface VocabGradeLevel {
   deltaVsTarget: number | null;
 }
 
+export interface NextMove {
+  // Short imperative title. e.g. "Add wait time 2 after each student response"
+  title: string;
+  // 1-2 sentences describing what to do in the next lesson.
+  description: string;
+  // One-sentence research basis. e.g. "Rowe (1986): wait time 2 doubles
+  // student reasoning depth when used consistently."
+  whyItWorks: string;
+  // Optional sample teacher line/script the teacher can rehearse.
+  rehearsalScript?: string;
+}
+
 export interface WaitTimeSummary {
   waitTime1Count: number;
   waitTime1AvgMs: number;
@@ -71,6 +83,10 @@ export interface ReportSummary {
   subject: string | null;
   topic: string | null;
   vocabGradeLevel: VocabGradeLevel;
+  // The single highest-leverage move to try in the next lesson, chosen by
+  // the coach LLM in light of this lesson's data and the teacher's selected
+  // intent. Null when there's not enough signal to recommend one.
+  nextMove: NextMove | null;
 }
 
 export interface HighlightedMoment {

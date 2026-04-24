@@ -16,7 +16,7 @@ export default async function reportRoutes(fastify: FastifyInstance) {
     const reports = await getPrisma().lessonReport.findMany({
       where: { userId: request.userId, status: "completed" },
       orderBy: { createdAt: "desc" },
-      include: { recording: { select: { title: true, durationSeconds: true, recordedAt: true } } },
+      include: { recording: { select: { title: true, durationSeconds: true, recordedAt: true, intent: true } } },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
@@ -29,7 +29,7 @@ export default async function reportRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>("/:id", async (request, reply) => {
     const report = await getPrisma().lessonReport.findFirst({
       where: { id: request.params.id, userId: request.userId },
-      include: { recording: { select: { title: true, durationSeconds: true, recordedAt: true } } },
+      include: { recording: { select: { title: true, durationSeconds: true, recordedAt: true, intent: true } } },
     });
     if (!report) return reply.status(404).send({ error: "not_found", message: "Report not found" });
     await logAudit({ userId: request.userId, action: "report.view", resourceType: "LessonReport", resourceId: report.id });

@@ -25,11 +25,19 @@ export default async function recordingRoutes(fastify: FastifyInstance) {
   });
 
   // POST /recordings — create recording + enqueue processing
-  fastify.post<{ Body: { audioUrl: string; durationSeconds: number; fileSizeBytes: number; title?: string } }>("/", async (request, reply) => {
+  fastify.post<{ Body: { audioUrl: string; durationSeconds: number; fileSizeBytes: number; title?: string; intent?: string | null } }>("/", async (request, reply) => {
     const parsed = CreateRecordingSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "validation", message: parsed.error.message });
     const recording = await getPrisma().lessonRecording.create({
-      data: { userId: request.userId, audioUrl: parsed.data.audioUrl, durationSeconds: parsed.data.durationSeconds, fileSizeBytes: parsed.data.fileSizeBytes, title: parsed.data.title ?? null, status: "processing" },
+      data: {
+        userId: request.userId,
+        audioUrl: parsed.data.audioUrl,
+        durationSeconds: parsed.data.durationSeconds,
+        fileSizeBytes: parsed.data.fileSizeBytes,
+        title: parsed.data.title ?? null,
+        intent: parsed.data.intent ?? null,
+        status: "processing",
+      },
     });
     await enqueueProcessingJob({ recordingId: recording.id, userId: request.userId, audioUrl: recording.audioUrl });
     await logAudit({ userId: request.userId, action: "recording.create", resourceType: "LessonRecording", resourceId: recording.id });

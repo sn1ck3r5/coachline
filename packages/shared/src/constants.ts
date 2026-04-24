@@ -14,6 +14,17 @@ export type TeacherMove = (typeof TEACHER_MOVES)[number];
 export const DOK_LEVELS = [1, 2, 3, 4] as const;
 export type DokLevel = (typeof DOK_LEVELS)[number];
 
+export const LESSON_INTENTS = [
+  "direct_instruction",
+  "discussion",
+  "inquiry",
+  "workshop",
+  "review",
+  "collaborative",
+  "assessment",
+] as const;
+export type LessonIntent = (typeof LESSON_INTENTS)[number];
+
 export const PRACTICE_AREAS = [
   "wait_time", "open_questions", "student_talk_ratio", "uptake",
   "dok_mix", "praise_ratio", "vocab_match", "custom",

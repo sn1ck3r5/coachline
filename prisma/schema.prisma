@@ -60,6 +60,10 @@ model LessonRecording {
   fileSizeBytes   Int
   status          RecordingStatus @default(uploading)
   title           String?
+  // One of LESSON_INTENTS from @coachline/shared; validated at the API edge.
+  // Kept as a plain string column rather than a Prisma enum so the canonical
+  // list stays in shared/constants.ts and extending it doesn't need a DDL change.
+  intent          String?
   recordedAt      DateTime        @default(now())
   createdAt       DateTime        @default(now())
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
