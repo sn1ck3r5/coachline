@@ -3,7 +3,12 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import type { LessonReport, Transcript, TranscriptSegment } from "@coachline/shared";
+import type {
+  LessonReport,
+  LessonRecording,
+  Transcript,
+  TranscriptSegment,
+} from "@coachline/shared";
 
 function TalkTimeBar({ label, percent, color }: { label: string; percent: number; color: string }) {
   return (
@@ -65,6 +70,16 @@ const SUBJECT_LABELS: Record<string, string> = {
   science: "Science",
   social_studies: "Social Studies",
   other: "Other",
+};
+
+const INTENT_LABELS: Record<string, string> = {
+  direct_instruction: "Direct Instruction",
+  discussion: "Discussion",
+  inquiry: "Inquiry",
+  workshop: "Workshop",
+  review: "Review",
+  collaborative: "Collaborative",
+  assessment: "Assessment",
 };
 
 function gradeLabel(grade: number | null): string {
@@ -194,6 +209,16 @@ export default function LessonReportPage() {
                 : null}
               {report.summary?.subject && report.summary?.topic ? " · " : null}
               {report.summary?.topic ?? null}
+            </p>
+          )}
+          {(report as LessonReport & { recording?: { intent: string | null } }).recording?.intent && (
+            <p className="text-xs mt-2">
+              <span className="inline-block px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/20">
+                Intent:{" "}
+                {INTENT_LABELS[
+                  (report as LessonReport & { recording: { intent: string } }).recording.intent
+                ] ?? (report as LessonReport & { recording: { intent: string } }).recording.intent}
+              </span>
             </p>
           )}
         </div>
@@ -406,6 +431,39 @@ export default function LessonReportPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* One Next Move — the single highest-leverage change for next lesson */}
+          {report.summary?.nextMove && (
+            <div className="bg-gradient-to-br from-violet-500/10 to-indigo-500/5 rounded-xl p-5 border border-violet-500/30">
+              <div className="flex items-center gap-2 mb-3">
+                <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <h2 className="text-sm font-semibold text-violet-300 uppercase tracking-wider">
+                  Try This Next Lesson
+                </h2>
+              </div>
+              <p className="text-lg font-semibold text-white leading-snug">
+                {report.summary.nextMove.title}
+              </p>
+              <p className="text-sm text-gray-300 mt-2 leading-relaxed">
+                {report.summary.nextMove.description}
+              </p>
+              <p className="text-xs text-gray-500 italic mt-3 leading-relaxed">
+                Why it works: {report.summary.nextMove.whyItWorks}
+              </p>
+              {report.summary.nextMove.rehearsalScript && (
+                <div className="mt-4 p-3 rounded-lg bg-black/30 border border-violet-500/20">
+                  <p className="text-xs text-violet-300 uppercase tracking-wider mb-1 font-semibold">
+                    Rehearse saying
+                  </p>
+                  <p className="text-sm text-gray-200 italic leading-relaxed">
+                    &ldquo;{report.summary.nextMove.rehearsalScript}&rdquo;
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

@@ -46,6 +46,16 @@ const SUBJECT_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+const INTENT_LABELS: Record<string, string> = {
+  direct_instruction: "Direct Instruction",
+  discussion: "Discussion",
+  inquiry: "Inquiry",
+  workshop: "Workshop",
+  review: "Review",
+  collaborative: "Collaborative",
+  assessment: "Assessment",
+};
+
 function formatSubjectTopic(
   subject: string | null | undefined,
   topic: string | null | undefined
@@ -147,6 +157,16 @@ export default function LessonReportScreen() {
               {formatSubjectTopic(summary.subject, summary.topic)}
             </Text>
           )}
+          {(report as unknown as { recording?: { intent?: string | null } }).recording?.intent && (
+            <View style={styles.intentChip}>
+              <Text style={styles.intentChipText}>
+                Intent:{" "}
+                {INTENT_LABELS[
+                  (report as unknown as { recording: { intent: string } }).recording.intent
+                ] ?? (report as unknown as { recording: { intent: string } }).recording.intent}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* ── Talk Time ── */}
@@ -239,6 +259,30 @@ export default function LessonReportScreen() {
                 onPlay={handlePlay}
               />
             ))}
+          </View>
+        )}
+
+        {/* ── Try This Next Lesson ── */}
+        {summary.nextMove && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>TRY THIS NEXT LESSON</Text>
+            <View style={styles.nextMoveCard}>
+              <Text style={styles.nextMoveTitle}>{summary.nextMove.title}</Text>
+              <Text style={styles.nextMoveDescription}>
+                {summary.nextMove.description}
+              </Text>
+              <Text style={styles.nextMoveWhy}>
+                Why it works: {summary.nextMove.whyItWorks}
+              </Text>
+              {summary.nextMove.rehearsalScript && (
+                <View style={styles.rehearsalBox}>
+                  <Text style={styles.rehearsalLabel}>REHEARSE SAYING</Text>
+                  <Text style={styles.rehearsalText}>
+                    “{summary.nextMove.rehearsalScript}”
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         )}
 
@@ -360,6 +404,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
     marginTop: 2,
+  },
+  intentChip: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#4c2d8b",
+    backgroundColor: "#231847",
+  },
+  intentChipText: {
+    fontSize: 11,
+    color: "#c7b4ff",
+    fontWeight: "600",
+  },
+  nextMoveCard: {
+    backgroundColor: "#1a1534",
+    borderColor: "#4c2d8b",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+  },
+  nextMoveTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fff",
+    lineHeight: 22,
+  },
+  nextMoveDescription: {
+    fontSize: 14,
+    color: "#cbd5ff",
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  nextMoveWhy: {
+    fontSize: 12,
+    color: "#7f8dc1",
+    fontStyle: "italic",
+    marginTop: 12,
+    lineHeight: 18,
+  },
+  rehearsalBox: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: "#0d0920",
+    borderColor: "#2e2154",
+    borderWidth: 1,
+  },
+  rehearsalLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: "#a78bfa",
+  },
+  rehearsalText: {
+    fontSize: 14,
+    fontStyle: "italic",
+    color: "#e0e7ff",
+    marginTop: 6,
+    lineHeight: 20,
   },
 
   // Section

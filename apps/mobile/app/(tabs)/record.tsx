@@ -13,6 +13,17 @@ import { useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import AudioRecorder from "../../components/AudioRecorder";
 import { api } from "../../lib/api";
+import { LESSON_INTENTS, type LessonIntent } from "@coachline/shared";
+
+const INTENT_LABELS: Record<LessonIntent, string> = {
+  direct_instruction: "Direct Instruction",
+  discussion: "Discussion",
+  inquiry: "Inquiry",
+  workshop: "Workshop",
+  review: "Review",
+  collaborative: "Collaborative",
+  assessment: "Assessment",
+};
 
 type ScreenState = "recording" | "review" | "saving";
 
@@ -33,6 +44,7 @@ export default function RecordScreen() {
   const [screenState, setScreenState] = useState<ScreenState>("recording");
   const [completed, setCompleted] = useState<CompletedRecording | null>(null);
   const [title, setTitle] = useState("");
+  const [intent, setIntent] = useState<LessonIntent | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -82,6 +94,7 @@ export default function RecordScreen() {
         durationSeconds: completed.durationSeconds,
         fileSizeBytes: completed.fileSizeBytes,
         ...(title.trim() ? { title: title.trim() } : {}),
+        intent,
       });
 
       // Step 4: Navigate to lessons list
@@ -172,6 +185,40 @@ export default function RecordScreen() {
           returnKeyType="done"
           maxLength={120}
         />
+      </View>
+
+      {/* Intent picker — lets the coaching report interpret metrics
+          against the kind of lesson you meant to deliver. */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Lesson Intent (optional)</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.intentRow}
+        >
+          {LESSON_INTENTS.map((key) => {
+            const selected = intent === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.intentPill,
+                  selected && styles.intentPillSelected,
+                ]}
+                onPress={() => setIntent(selected ? null : key)}
+              >
+                <Text
+                  style={[
+                    styles.intentPillLabel,
+                    selected && styles.intentPillLabelSelected,
+                  ]}
+                >
+                  {INTENT_LABELS[key]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Error */}
@@ -279,6 +326,30 @@ const styles = StyleSheet.create({
     color: "#fff",
     borderWidth: 1,
     borderColor: "#2a2a2a",
+  },
+  intentRow: {
+    paddingRight: 16,
+    gap: 8,
+  },
+  intentPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+    backgroundColor: "#111",
+  },
+  intentPillSelected: {
+    borderColor: "#a78bfa",
+    backgroundColor: "#2a1f4a",
+  },
+  intentPillLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#888",
+  },
+  intentPillLabelSelected: {
+    color: "#fff",
   },
   errorBox: {
     backgroundColor: "#2a0a0a",

@@ -3,9 +3,20 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { LESSON_INTENTS, type LessonIntent } from "@coachline/shared";
 
 type Mode = "video" | "audio";
 type RecordingState = "idle" | "previewing" | "recording" | "stopped" | "uploading" | "done" | "error";
+
+const INTENT_LABELS: Record<LessonIntent, { label: string; hint: string }> = {
+  direct_instruction: { label: "Direct Instruction", hint: "Introducing a new concept or skill" },
+  discussion: { label: "Discussion", hint: "Facilitating student dialogue" },
+  inquiry: { label: "Inquiry", hint: "Student investigation and sense-making" },
+  workshop: { label: "Workshop", hint: "Mini-lesson + guided practice" },
+  review: { label: "Review", hint: "Reinforcing prior material" },
+  collaborative: { label: "Collaborative", hint: "Structured group work" },
+  assessment: { label: "Assessment", hint: "Formative or summative check" },
+};
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -40,6 +51,7 @@ export default function RecordPage() {
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
+  const [intent, setIntent] = useState<LessonIntent | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -182,6 +194,7 @@ export default function RecordPage() {
         durationSeconds,
         fileSizeBytes: blob.size,
         title: `Lesson ${new Date().toLocaleDateString()}`,
+        intent,
       });
 
       setState("done");
@@ -232,6 +245,40 @@ export default function RecordPage() {
           >
             <span className="mr-2">🎙️</span> Audio Only
           </button>
+        </div>
+      )}
+
+      {/* Lesson intent — set before recording so the coaching report can
+          interpret metrics against what you were trying to do. */}
+      {(state === "idle" || state === "previewing") && (
+        <div className="mb-6">
+          <div className="flex items-baseline justify-between mb-2">
+            <label className="text-sm font-semibold text-gray-300">Lesson intent</label>
+            <span className="text-xs text-gray-500">optional — improves the next-move recommendation</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {LESSON_INTENTS.map((key) => {
+              const selected = intent === key;
+              const { label, hint } = INTENT_LABELS[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setIntent(selected ? null : key)}
+                  className={`text-left px-3 py-2 rounded-lg border transition-all ${
+                    selected
+                      ? "border-violet-500 bg-violet-500/10"
+                      : "border-white/10 bg-[#1a1a1a] hover:border-white/20"
+                  }`}
+                >
+                  <p className={`text-sm font-medium ${selected ? "text-white" : "text-gray-300"}`}>
+                    {label}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-tight">{hint}</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
