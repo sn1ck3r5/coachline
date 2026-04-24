@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Defaults to same-origin (empty prefix). For local dev against a
+// separate API process, set NEXT_PUBLIC_API_URL=http://localhost:3001.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 class ApiClient {
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
