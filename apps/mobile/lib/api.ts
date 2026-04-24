@@ -6,7 +6,9 @@ import {
   clearTokens,
 } from "./storage";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001";
+// API routes live under /api/* on the server — avoids collisions with
+// Next.js page paths now that the web frontend and API share an origin.
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001") + "/api";
 
 class ApiClient {
   private async request<T>(

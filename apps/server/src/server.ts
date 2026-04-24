@@ -24,13 +24,14 @@ app.register(import("./plugins/cors"));
 app.register(import("./plugins/auth"));
 app.register(import("./plugins/rate-limit"));
 
-// API routes (prefixed so the Next catch-all can take everything else)
-app.register(import("./routes/auth"), { prefix: "/auth" });
-app.register(import("./routes/recordings"), { prefix: "/recordings" });
-app.register(import("./routes/voice-enrollment"), { prefix: "/voice-enrollment" });
-app.register(import("./routes/reports"), { prefix: "/reports" });
-app.register(import("./routes/goals"), { prefix: "/goals" });
-app.register(import("./routes/users"), { prefix: "/users" });
+// API routes are all under /api/* so they never collide with Next.js
+// page paths (e.g. /goals as a Next page vs /goals as an API route).
+app.register(import("./routes/auth"), { prefix: "/api/auth" });
+app.register(import("./routes/recordings"), { prefix: "/api/recordings" });
+app.register(import("./routes/voice-enrollment"), { prefix: "/api/voice-enrollment" });
+app.register(import("./routes/reports"), { prefix: "/api/reports" });
+app.register(import("./routes/goals"), { prefix: "/api/goals" });
+app.register(import("./routes/users"), { prefix: "/api/users" });
 
 // Next.js fallback — any request that doesn't match an API route is
 // handed to Next.js. Using setNotFoundHandler instead of app.all("/*")

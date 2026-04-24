@@ -1,6 +1,8 @@
-// Defaults to same-origin (empty prefix). For local dev against a
-// separate API process, set NEXT_PUBLIC_API_URL=http://localhost:3001.
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+// Same-origin by default (empty prefix). Override via NEXT_PUBLIC_API_URL
+// for local dev against a separate Fastify process. The "/api" segment is
+// appended here so API routes live under /api/* on the server and don't
+// collide with Next.js page paths (e.g. /goals as a page vs API route).
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "") + "/api";
 
 class ApiClient {
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
