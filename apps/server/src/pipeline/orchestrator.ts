@@ -33,8 +33,8 @@ export async function processLesson(data: {
   const rawInsights = await analyzeTranscript(transcription.segments);
 
   // Stage 4: Report Generation
-  // Fetch active goal + user's target grade in parallel
-  const [activeGoal, user] = await Promise.all([
+  // Fetch active goal + user's target grade + recording intent in parallel
+  const [activeGoal, user, recording] = await Promise.all([
     prisma.goal.findFirst({
       where: { userId, status: "active" },
       select: { id: true, practiceArea: true, targetMetric: true },
@@ -42,6 +42,10 @@ export async function processLesson(data: {
     prisma.user.findUnique({
       where: { id: userId },
       select: { targetGrade: true },
+    }),
+    prisma.lessonRecording.findUnique({
+      where: { id: recordingId },
+      select: { intent: true },
     }),
   ]);
 
@@ -56,6 +60,7 @@ export async function processLesson(data: {
     activeGoal,
     teacherSegments,
     targetGrade: user?.targetGrade ?? null,
+    intent: (recording?.intent as import("@coachline/shared").LessonIntent | null) ?? null,
   });
 
   // Stage 5: Persist everything in a transaction

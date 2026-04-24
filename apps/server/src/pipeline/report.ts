@@ -7,6 +7,8 @@ import type {
   PraiseSummary,
   TeacherMovesSummary,
   VocabGradeLevel,
+  NextMove,
+  LessonIntent,
 } from "@coachline/shared";
 import { computeTeacherFleschKincaid } from "./readability";
 
@@ -33,6 +35,7 @@ interface GenerateReportInput {
   activeGoal?: { practiceArea: string; targetMetric: string } | null;
   teacherSegments: TranscriptSegment[];
   targetGrade: number | null;
+  intent: LessonIntent | null;
 }
 
 interface GenerateReportResult {
@@ -43,20 +46,37 @@ interface GenerateReportResult {
 
 const SYSTEM_PROMPT = `You are an instructional coach synthesizing lesson analysis data into a coaching report. Your tone is encouraging and growth-oriented — lead with strengths, then areas for growth.
 
+IMPORTANT — lesson intent: the teacher selects the lesson's intended pedagogical mode when they record. The intent is supplied in the user message (or null if the teacher didn't select one). You MUST interpret the metrics in light of the selected intent, not against a universal ideal. Specifically:
+
+- direct_instruction (introducing a new concept or skill): high teacher-talk %, explain-heavy teacher moves, and short wait-time 1 are often APPROPRIATE at the start of the lesson. Flag problems only if checks-for-understanding were missing before moving on.
+- discussion: low student-to-student talk, low uptake, or high teacher-talk % are misaligned with discussion intent. Flag them.
+- inquiry: few student-generated questions, few open-ended questions, or low DOK 3-4 are misaligned with inquiry intent.
+- workshop: look for mini-lesson → guided practice → conferring arc. Short student talk with teacher feedback is normal.
+- review: high teacher-talk and closed questions are expected; look instead for misconception-surfacing.
+- collaborative: low group talk % indicates misalignment with collaborative intent.
+- assessment: more closed/procedural questions and lower uptake are expected; look for formative sampling.
+- null (teacher did not select): evaluate against general effective-instruction principles without penalizing any single pattern.
+
 Given the raw analysis data, generate:
 
 1. subject: one of "math", "ela", "science", "social_studies", "other" (best inference from the transcript content; "other" when unclear).
-2. topic: short phrase naming the specific topic taught (e.g. "adding fractions with unlike denominators", "American Revolution causes", "photosynthesis"). Null when the transcript is too short or topic is unclear.
+2. topic: short phrase naming the specific topic taught (e.g. "adding fractions with unlike denominators"). Null when unclear.
 3. highlightedMoments: top 3-5 notable moments. Each has:
    - title: short label (e.g., "Great uptake at 14:32")
-   - description: 1-2 sentences on what happened and why it matters
+   - description: 1-2 sentences on what happened and why it matters, referencing the intent where relevant
    - startMs, endMs: timestamps
    - type: the insight type this relates to
-4. reflectionPrompts: 2-3 personalized reflection questions based on THIS lesson's data. Reference actual numbers or moments. Do not be generic.
+4. reflectionPrompts: 2-3 personalized reflection questions based on THIS lesson's data, with explicit intent framing ("Your intent was <X>; given that…"). Reference actual numbers.
+5. nextMove: THE ONE highest-leverage move to try in the very next lesson. This is the core of the coaching loop — one move, not a list. Object with:
+   - title: short imperative. e.g. "Add wait time 2 after student responses" (under 60 chars)
+   - description: 1-2 sentences describing exactly what to do in the next lesson. Specific. Actionable.
+   - whyItWorks: 1 sentence, research-grounded. Cite the underlying research concept briefly (e.g. "Rowe (1986): wait time 2 doubles student reasoning depth"). Do not invent citations — use the concepts named in the INSIGHT_TYPES we collected (DOK, PBIS praise, TalkMoves uptake, Flesch-Kincaid, etc.).
+   - rehearsalScript: optional. A ~25-word sample teacher line the teacher can rehearse saying. Omit the field if no script is useful.
+   Pick the move that best serves the gap between the teacher's selected intent and what the lesson actually showed. If data is thin, return nextMove: null.
 
-If the teacher has an active goal, weight highlights and prompts toward that practice area.
+If the teacher has an active goal, weight highlights and the nextMove toward that practice area.
 
-Return JSON with exactly these keys: subject, topic, highlightedMoments, reflectionPrompts`;
+Return JSON with exactly these keys: subject, topic, highlightedMoments, reflectionPrompts, nextMove`;
 
 function computeDokDistribution(questions: RawInsight[]): DokDistribution {
   const dist: DokDistribution = {
@@ -128,6 +148,7 @@ export async function generateReport(
     activeGoal,
     teacherSegments,
     targetGrade,
+    intent,
   } = input;
 
   const questions = insights.filter((i) => i.type.startsWith("question_"));
@@ -147,9 +168,9 @@ export async function generateReport(
       ? waitTime2.reduce((sum, i) => sum + i.durationMs, 0) / waitTime2.length
       : 0;
 
-  // LLM-derived fields (subject, topic) come from the report call below,
-  // so build the summary without them first, then fold them in.
-  const baseSummary: Omit<ReportSummary, "subject" | "topic"> = {
+  // LLM-derived fields (subject, topic, nextMove) come from the report call
+  // below, so build the summary without them first and fold them in after.
+  const baseSummary: Omit<ReportSummary, "subject" | "topic" | "nextMove"> = {
     talkTime,
     questions: {
       total: questions.length,
@@ -179,20 +200,22 @@ export async function generateReport(
     vocabGradeLevel: computeVocabGradeLevel(teacherSegments, targetGrade),
   };
 
-  // Generate subject/topic/highlights/prompts via Claude.
+  // Generate subject/topic/highlights/prompts/nextMove via Claude.
   const dataForClaude = JSON.stringify({
     summary: baseSummary,
     insightSamples: insights.slice(0, 30),
     activeGoal,
     targetGrade,
+    intent,
   });
 
-  const { subject, topic, highlightedMoments, reflectionPrompts } =
+  const { subject, topic, highlightedMoments, reflectionPrompts, nextMove } =
     await invokeClaudeJson<{
       subject: string | null;
       topic: string | null;
       highlightedMoments: HighlightedMoment[];
       reflectionPrompts: string[];
+      nextMove: NextMove | null;
     }>(SYSTEM_PROMPT, [
       {
         role: "user",
@@ -204,6 +227,7 @@ export async function generateReport(
     ...baseSummary,
     subject: subject ?? null,
     topic: topic ?? null,
+    nextMove: nextMove ?? null,
   };
 
   return { summary, highlightedMoments, reflectionPrompts };
