@@ -19,7 +19,15 @@ import { api } from "../../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PracticeArea = "wait_time" | "open_questions" | "student_talk_ratio" | "uptake" | "custom";
+type PracticeArea =
+  | "wait_time"
+  | "open_questions"
+  | "student_talk_ratio"
+  | "uptake"
+  | "dok_mix"
+  | "praise_ratio"
+  | "vocab_match"
+  | "custom";
 
 interface PracticeCard {
   area: PracticeArea;
@@ -49,11 +57,47 @@ const PRACTICE_CARDS: PracticeCard[] = [
     description: "Use student contributions to advance discussion",
   },
   {
+    area: "dok_mix",
+    label: "Deeper question depth",
+    description: "Ask more questions at DOK levels 3 and 4 (Webb's Depth of Knowledge)",
+  },
+  {
+    area: "praise_ratio",
+    label: "Praise to correction ratio",
+    description: "PBIS literature recommends 4:1 praise vs correction",
+  },
+  {
+    area: "vocab_match",
+    label: "Vocabulary grade match",
+    description: "Keep teacher vocabulary near your target grade level",
+  },
+  {
     area: "custom",
     label: "Custom goal",
     description: "Define your own practice focus",
   },
 ];
+
+function targetMetricHint(area: PracticeArea | null): string {
+  switch (area) {
+    case "wait_time":
+      return "e.g. 3+ seconds avg wait time";
+    case "student_talk_ratio":
+      return "e.g. 40% student talk";
+    case "open_questions":
+      return "e.g. 5 open questions per lesson";
+    case "uptake":
+      return "e.g. 4 uptake moments per lesson";
+    case "dok_mix":
+      return "e.g. 30% of questions at DOK 3-4";
+    case "praise_ratio":
+      return "e.g. 4 (PBIS target is 4:1)";
+    case "vocab_match":
+      return "e.g. within 1 grade of target";
+    default:
+      return "e.g. Describe your target";
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -76,6 +120,9 @@ function practiceAreaLabel(area: string, customLabel: string | null): string {
     open_questions: "Ask more open-ended questions",
     student_talk_ratio: "Increase student talk ratio",
     uptake: "Build on student ideas",
+    dok_mix: "Deeper question depth",
+    praise_ratio: "Praise to correction ratio",
+    vocab_match: "Vocabulary grade match",
   };
   return labels[area] ?? area;
 }
@@ -227,15 +274,7 @@ function CreateGoalModal({ visible, onClose, onCreated }: CreateGoalModalProps) 
                 style={styles.textInput}
                 value={targetMetric}
                 onChangeText={setTargetMetric}
-                placeholder={
-                  selectedArea === "wait_time"
-                    ? "e.g. 3+ seconds avg wait time"
-                    : selectedArea === "student_talk_ratio"
-                    ? "e.g. 40% student talk"
-                    : selectedArea === "open_questions"
-                    ? "e.g. 5 open questions per lesson"
-                    : "e.g. Describe your target"
-                }
+                placeholder={targetMetricHint(selectedArea)}
                 placeholderTextColor="#444"
                 autoCapitalize="sentences"
                 maxLength={160}

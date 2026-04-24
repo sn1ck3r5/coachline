@@ -11,7 +11,25 @@ const AREA_LABELS: Record<string, string> = {
   open_questions: "Open Questions",
   student_talk_ratio: "Student Talk Ratio",
   uptake: "Uptake",
+  dok_mix: "Question Depth (DOK)",
+  praise_ratio: "Praise : Correction Ratio",
+  vocab_match: "Vocabulary Grade Match",
   custom: "Custom",
+};
+
+// Area-specific placeholder for the target-metric field. Each area in
+// computeGoalMetric (orchestrator.ts) produces a single number with a
+// specific unit — the hint here nudges the teacher toward a realistic
+// numeric target in that unit.
+const AREA_TARGET_HINTS: Record<string, string> = {
+  wait_time: "e.g. 3 (seconds average wait time 1)",
+  open_questions: "e.g. 5 (open questions per lesson)",
+  student_talk_ratio: "e.g. 40 (percent student talk)",
+  uptake: "e.g. 4 (uptake moments per lesson)",
+  dok_mix: "e.g. 30 (percent of questions at DOK 3-4)",
+  praise_ratio: "e.g. 4 (PBIS recommends 4:1 praise-to-correction)",
+  vocab_match: "e.g. 1 (grades above or below target, lower is closer)",
+  custom: "e.g. Describe the target in your own words",
 };
 
 function GoalCard({ goal }: { goal: Goal }) {
@@ -166,9 +184,13 @@ export default function GoalsPage() {
                 value={targetMetric}
                 onChange={(e) => setTargetMetric(e.target.value)}
                 required
-                placeholder="e.g. &lt; 60% teacher talk, ≥ 5 open questions"
+                placeholder={AREA_TARGET_HINTS[practiceArea] ?? "Describe your target"}
                 className="w-full bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-colors"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Progress is scored after each lesson — lower or higher depending on the
+                metric. See the lesson report to confirm units.
+              </p>
             </div>
 
             <button
