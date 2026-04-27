@@ -9,6 +9,10 @@ import type {
   VocabGradeLevel,
   ParticipationDistribution,
   DiscoursePatterns,
+  LessonLaunchScore,
+  QuestionQualityBreakdown,
+  StudentReasoningResult,
+  AcademicLanguageSummary,
   NextMove,
   LessonIntent,
 } from "@coachline/shared";
@@ -40,6 +44,8 @@ interface GenerateReportInput {
   intent: LessonIntent | null;
   participationDistribution: ParticipationDistribution;
   discoursePatterns: DiscoursePatterns;
+  studentReasoning: StudentReasoningResult;
+  academicLanguage: AcademicLanguageSummary;
 }
 
 interface GenerateReportResult {
@@ -94,6 +100,18 @@ discoursePatterns:
 - ireClosureRate: fraction of content questions where the teacher closed with evaluation rather than uptake. High rates (>0.7) indicate dialogic potential is being shut down — the teacher is generating discourse events but immediately closing them. This is distinct from uptakeCount — a teacher can have low uptake AND high IRE closure (actively suppressing dialogue), or low uptake but also low closure (questions going unanswered).
 
 For the nextMove, these metrics are high-signal when they reveal a structural pattern (not just a single moment). Prefer citing them when they're clearly tied to intent mismatch.
+
+==== NEW SIGNALS ====
+
+lessonLaunch: if present, its score (0–3) indicates how well the lesson was opened. Score 0 = no opening clarity established; treat this as a coaching opportunity in direct_instruction, inquiry, and workshop intents. For other intents it is secondary signal.
+
+questionQuality: focusingRatio < 0.35 means most "open" questions were actually funneling — fishing for a predetermined answer rather than inviting student reasoning. For inquiry and discussion intents, this is a primary coaching signal.
+
+studentReasoning: reasoningRatio < 0.20 means few student turns contained evidence/causal language. The topTriggeringMoveType tells you which of the teacher's moves actually elicited reasoning — reference this in the nextMove when relevant.
+
+academicLanguage: definitionRate < 0.50 means the teacher introduced Tier 2/3 vocabulary without defining it in context. Relevant for direct_instruction and ELA/science/social_studies subjects.
+
+These signals are available in the summary you receive. Reference them where they support the nextMove or reflection prompts. Do not invent values not present in the data.
 
 If the teacher has an active goal, weight highlights and the nextMove toward that practice area.
 
@@ -159,6 +177,38 @@ function computeVocabGradeLevel(
   return { teacherFleschKincaid, targetGrade, deltaVsTarget };
 }
 
+function extractLessonLaunch(insights: RawInsight[]): LessonLaunchScore | null {
+  const raw = insights.find((i) => i.type === "lesson_launch");
+  if (!raw) return null;
+  const m = raw.metadata as {
+    learningIntention?: { detected: boolean; timestampMs: number | null; quote: string | null };
+    successCriteria?: { detected: boolean; timestampMs: number | null; quote: string | null };
+    relevanceHook?: { detected: boolean; timestampMs: number | null; quote: string | null };
+  };
+  const li = m.learningIntention ?? { detected: false, timestampMs: null, quote: null };
+  const sc = m.successCriteria ?? { detected: false, timestampMs: null, quote: null };
+  const rh = m.relevanceHook ?? { detected: false, timestampMs: null, quote: null };
+  const score = [li.detected, sc.detected, rh.detected].filter(Boolean).length;
+  return { score, learningIntention: li, successCriteria: sc, relevanceHook: rh };
+}
+
+function computeQuestionQuality(insights: RawInsight[]): QuestionQualityBreakdown {
+  const openQuestions = insights.filter((i) => i.type === "question_open");
+  let focusing = 0;
+  let funneling = 0;
+  for (const q of openQuestions) {
+    const ft = (q.metadata as { focusingType?: string }).focusingType;
+    if (ft === "funneling") funneling++;
+    else focusing++;
+  }
+  const total = focusing + funneling;
+  return {
+    focusing,
+    funneling,
+    focusingRatio: total > 0 ? Math.round((focusing / total) * 1000) / 1000 : null,
+  };
+}
+
 export async function generateReport(
   input: GenerateReportInput
 ): Promise<GenerateReportResult> {
@@ -172,6 +222,8 @@ export async function generateReport(
     intent,
     participationDistribution,
     discoursePatterns,
+    studentReasoning,
+    academicLanguage,
   } = input;
 
   const questions = insights.filter((i) => i.type.startsWith("question_"));
@@ -221,11 +273,10 @@ export async function generateReport(
     praise: computePraiseSummary(insights),
     teacherMoves: computeTeacherMovesSummary(insights),
     vocabGradeLevel: computeVocabGradeLevel(teacherSegments, targetGrade),
-    // Placeholders — populated by Tasks 5–6 once all pipeline signals are wired.
-    lessonLaunch: null,
-    questionQuality: { focusing: 0, funneling: 0, focusingRatio: null },
-    studentReasoning: { reasoningTurnCount: 0, totalStudentTurnCount: 0, reasoningRatio: null, topTriggeringMoveType: null },
-    academicLanguage: { tier2Words: [], tier2Count: 0, definitionRate: null },
+    lessonLaunch: extractLessonLaunch(insights),
+    questionQuality: computeQuestionQuality(insights),
+    studentReasoning,
+    academicLanguage,
     participationDistribution,
     discoursePatterns,
   };
