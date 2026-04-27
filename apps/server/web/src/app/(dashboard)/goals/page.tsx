@@ -14,6 +14,9 @@ const AREA_LABELS: Record<string, string> = {
   dok_mix: "Question Depth (DOK)",
   praise_ratio: "Praise : Correction Ratio",
   vocab_match: "Vocabulary Grade Match",
+  equity_of_voice: "Equity of Voice",
+  dialogue_quality: "Dialogue Quality",
+  lesson_clarity: "Lesson Clarity",
   custom: "Custom",
 };
 
@@ -29,6 +32,9 @@ const AREA_TARGET_HINTS: Record<string, string> = {
   dok_mix: "e.g. 30 (percent of questions at DOK 3-4)",
   praise_ratio: "e.g. 4 (PBIS recommends 4:1 praise-to-correction)",
   vocab_match: "e.g. 1 (grades above or below target, lower is closer)",
+  equity_of_voice: "e.g. 0.5 (Gini coefficient; lower = more equal participation)",
+  dialogue_quality: "e.g. 0.4 (IRE closure rate; lower = more uptake instead of closures)",
+  lesson_clarity: "e.g. 3 (Lesson Launch score 0–3; higher = clearer opening)",
   custom: "e.g. Describe the target in your own words",
 };
 
