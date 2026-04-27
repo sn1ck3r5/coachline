@@ -42,6 +42,8 @@ export type {
   VocabGradeLevel,
   NextMove,
   WaitTimeSummary,
+  ParticipationDistribution,
+  DiscoursePatterns,
   ReportSummary,
   HighlightedMoment,
   LessonReport,

@@ -7,6 +7,8 @@ import type {
   PraiseSummary,
   TeacherMovesSummary,
   VocabGradeLevel,
+  ParticipationDistribution,
+  DiscoursePatterns,
   NextMove,
   LessonIntent,
 } from "@coachline/shared";
@@ -36,6 +38,8 @@ interface GenerateReportInput {
   teacherSegments: TranscriptSegment[];
   targetGrade: number | null;
   intent: LessonIntent | null;
+  participationDistribution: ParticipationDistribution;
+  discoursePatterns: DiscoursePatterns;
 }
 
 interface GenerateReportResult {
@@ -73,6 +77,23 @@ Given the raw analysis data, generate:
    - whyItWorks: 1 sentence, research-grounded. Cite the underlying research concept briefly (e.g. "Rowe (1986): wait time 2 doubles student reasoning depth"). Do not invent citations — use the concepts named in the INSIGHT_TYPES we collected (DOK, PBIS praise, TalkMoves uptake, Flesch-Kincaid, etc.).
    - rehearsalScript: optional. A ~25-word sample teacher line the teacher can rehearse saying. Omit the field if no script is useful.
    Pick the move that best serves the gap between the teacher's selected intent and what the lesson actually showed. If data is thin, return nextMove: null.
+
+==== PARTICIPATION & DISCOURSE ====
+
+Three new metrics are included in the data. Interpret them as follows:
+
+participationDistribution:
+- uniqueStudentVoices: how many distinct student voices were heard. Fewer voices doesn't always mean low engagement — small classes or structured silent work are fine.
+- giniCoefficient: 0 = perfectly equal student talk; 1 = one student monopolizes. Scores above 0.6 in discussion/collaborative lessons warrant a coaching note.
+- top3SpeakersPercent: if ≥ 0.7 in an open discussion, a small group is dominating. Flag for discussion/collaborative intents; acceptable for direct_instruction.
+
+discoursePatterns:
+- pingPongIndex: fraction of student turns preceded by a teacher turn. High (>0.85) in discussion/collaborative/inquiry intents signals teacher is the hub of all talk — students are not talking to each other.
+- volleyballIndex: fraction of student turns preceded by another student turn. Higher is better for discussion/collaborative intents.
+- maxStudentChainLength: longest uninterrupted student-to-student exchange. 0 = pure ping-pong; ≥ 3 = some genuine student dialogue.
+- ireClosureRate: fraction of content questions where the teacher closed with evaluation rather than uptake. High rates (>0.7) indicate dialogic potential is being shut down — the teacher is generating discourse events but immediately closing them. This is distinct from uptakeCount — a teacher can have low uptake AND high IRE closure (actively suppressing dialogue), or low uptake but also low closure (questions going unanswered).
+
+For the nextMove, these metrics are high-signal when they reveal a structural pattern (not just a single moment). Prefer citing them when they're clearly tied to intent mismatch.
 
 If the teacher has an active goal, weight highlights and the nextMove toward that practice area.
 
@@ -149,6 +170,8 @@ export async function generateReport(
     teacherSegments,
     targetGrade,
     intent,
+    participationDistribution,
+    discoursePatterns,
   } = input;
 
   const questions = insights.filter((i) => i.type.startsWith("question_"));
@@ -198,6 +221,8 @@ export async function generateReport(
     praise: computePraiseSummary(insights),
     teacherMoves: computeTeacherMovesSummary(insights),
     vocabGradeLevel: computeVocabGradeLevel(teacherSegments, targetGrade),
+    participationDistribution,
+    discoursePatterns,
   };
 
   // Generate subject/topic/highlights/prompts/nextMove via Claude.

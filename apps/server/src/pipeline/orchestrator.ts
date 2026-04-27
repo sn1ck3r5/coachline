@@ -3,6 +3,7 @@ import { transcribeLesson } from "./transcribe";
 import { classifySegments } from "./classify";
 import { analyzeTranscript } from "./analyze";
 import { generateReport } from "./report";
+import { computeParticipationDistribution, computeDiscoursePatterns } from "./discourse";
 import { getPresignedUrl } from "../services/s3";
 
 let _prisma: PrismaClient;
@@ -22,11 +23,16 @@ export async function processLesson(data: {
   // Stage 1: Transcription + Diarization
   const transcription = await transcribeLesson(presignedAudioUrl);
 
-  // Stage 2: Segment Classification
+  // Stage 2: Segment Classification + Discourse Metrics
   const classification = classifySegments(
     transcription.rawSegments,
     transcription.teacherSpeakerId,
     transcription.durationMs
+  );
+
+  const participationDistribution = computeParticipationDistribution(
+    transcription.rawSegments,
+    transcription.teacherSpeakerId
   );
 
   // Stage 3: Coaching Analysis
@@ -53,6 +59,10 @@ export async function processLesson(data: {
     (s) => s.speaker === "teacher"
   );
 
+  // Discourse patterns require the full insight list (for IRE closure rate)
+  // so they're computed after the analyze stage.
+  const discoursePatterns = computeDiscoursePatterns(transcription.segments, rawInsights);
+
   const { summary, highlightedMoments, reflectionPrompts } = await generateReport({
     insights: rawInsights,
     talkTime: classification.talkTime,
@@ -61,6 +71,8 @@ export async function processLesson(data: {
     teacherSegments,
     targetGrade: user?.targetGrade ?? null,
     intent: (recording?.intent as import("@coachline/shared").LessonIntent | null) ?? null,
+    participationDistribution,
+    discoursePatterns,
   });
 
   // Stage 5: Persist everything in a transaction

@@ -50,6 +50,34 @@ export interface VocabGradeLevel {
   deltaVsTarget: number | null;
 }
 
+// How evenly distributed student participation is across all heard student voices.
+// Computed from diarized speaker IDs — no demographic data required.
+export interface ParticipationDistribution {
+  // Number of distinct student speaker IDs that spoke at least once.
+  uniqueStudentVoices: number;
+  // Gini coefficient of talk-time across student speakers: 0 = perfectly equal,
+  // 1 = one student monopolizes all talk. Null when < 2 student voices.
+  giniCoefficient: number | null;
+  // Fraction of total student talk time produced by the top 3 speakers.
+  // Null when < 3 student voices.
+  top3SpeakersPercent: number | null;
+}
+
+// Sequence-level analysis of who talks to whom — measures the degree of
+// teacher-mediated vs. student-to-student discourse.
+export interface DiscoursePatterns {
+  // Fraction of student turns immediately preceded by a teacher turn (ping-pong).
+  pingPongIndex: number;
+  // Fraction of student turns immediately preceded by another student turn (volleyball).
+  volleyballIndex: number;
+  // Longest uninterrupted run of consecutive student turns without a teacher turn.
+  maxStudentChainLength: number;
+  // Of the content questions (open/closed/focusing) that received a student
+  // response, the fraction NOT followed by an uptake move within 15 s.
+  // Null when there are no such questions.
+  ireClosureRate: number | null;
+}
+
 export interface NextMove {
   // Short imperative title. e.g. "Add wait time 2 after each student response"
   title: string;
@@ -83,6 +111,8 @@ export interface ReportSummary {
   subject: string | null;
   topic: string | null;
   vocabGradeLevel: VocabGradeLevel;
+  participationDistribution: ParticipationDistribution;
+  discoursePatterns: DiscoursePatterns;
   // The single highest-leverage move to try in the next lesson, chosen by
   // the coach LLM in light of this lesson's data and the teacher's selected
   // intent. Null when there's not enough signal to recommend one.
