@@ -27,7 +27,9 @@ export type LessonIntent = (typeof LESSON_INTENTS)[number];
 
 export const PRACTICE_AREAS = [
   "wait_time", "open_questions", "student_talk_ratio", "uptake",
-  "dok_mix", "praise_ratio", "vocab_match", "custom",
+  "dok_mix", "praise_ratio", "vocab_match",
+  "equity_of_voice", "dialogue_quality", "lesson_clarity",
+  "custom",
 ] as const;
 export type PracticeArea = (typeof PRACTICE_AREAS)[number];
 

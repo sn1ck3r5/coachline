@@ -78,6 +78,48 @@ export interface DiscoursePatterns {
   ireClosureRate: number | null;
 }
 
+export interface LessonLaunchCheck {
+  detected: boolean;
+  timestampMs: number | null;
+  quote: string | null;
+}
+
+export interface LessonLaunchScore {
+  score: number; // 0–3: count of elements detected
+  learningIntention: LessonLaunchCheck;
+  successCriteria: LessonLaunchCheck;
+  relevanceHook: LessonLaunchCheck;
+}
+
+export interface QuestionQualityBreakdown {
+  focusing: number;
+  funneling: number;
+  // focusing / (focusing + funneling); null when no open questions
+  focusingRatio: number | null;
+}
+
+export interface StudentReasoningResult {
+  reasoningTurnCount: number;
+  totalStudentTurnCount: number;
+  // reasoningTurnCount / totalStudentTurnCount; null when no student turns
+  reasoningRatio: number | null;
+  // which uptake type most often immediately preceded a reasoning student turn
+  topTriggeringMoveType: string | null;
+}
+
+export interface Tier2WordUsage {
+  word: string;
+  count: number;
+  definedInContext: boolean;
+}
+
+export interface AcademicLanguageSummary {
+  tier2Words: Tier2WordUsage[];
+  tier2Count: number;
+  // (words defined in context) / tier2Count; null when tier2Count === 0
+  definitionRate: number | null;
+}
+
 export interface NextMove {
   // Short imperative title. e.g. "Add wait time 2 after each student response"
   title: string;
@@ -111,6 +153,10 @@ export interface ReportSummary {
   subject: string | null;
   topic: string | null;
   vocabGradeLevel: VocabGradeLevel;
+  lessonLaunch: LessonLaunchScore | null;
+  questionQuality: QuestionQualityBreakdown;
+  studentReasoning: StudentReasoningResult;
+  academicLanguage: AcademicLanguageSummary;
   participationDistribution: ParticipationDistribution;
   discoursePatterns: DiscoursePatterns;
   // The single highest-leverage move to try in the next lesson, chosen by

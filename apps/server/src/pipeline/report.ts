@@ -221,6 +221,11 @@ export async function generateReport(
     praise: computePraiseSummary(insights),
     teacherMoves: computeTeacherMovesSummary(insights),
     vocabGradeLevel: computeVocabGradeLevel(teacherSegments, targetGrade),
+    // Placeholders — populated by Tasks 5–6 once all pipeline signals are wired.
+    lessonLaunch: null,
+    questionQuality: { focusing: 0, funneling: 0, focusingRatio: null },
+    studentReasoning: { reasoningTurnCount: 0, totalStudentTurnCount: 0, reasoningRatio: null, topTriggeringMoveType: null },
+    academicLanguage: { tier2Words: [], tier2Count: 0, definitionRate: null },
     participationDistribution,
     discoursePatterns,
   };
