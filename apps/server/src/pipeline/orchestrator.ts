@@ -3,7 +3,8 @@ import { transcribeLesson } from "./transcribe";
 import { classifySegments } from "./classify";
 import { analyzeTranscript } from "./analyze";
 import { generateReport } from "./report";
-import { computeParticipationDistribution, computeDiscoursePatterns } from "./discourse";
+import { computeParticipationDistribution, computeDiscoursePatterns, computeStudentReasoning } from "./discourse";
+import { computeAcademicLanguage } from "./vocabulary";
 import { getPresignedUrl } from "../services/s3";
 
 let _prisma: PrismaClient;
@@ -62,6 +63,8 @@ export async function processLesson(data: {
   // Discourse patterns require the full insight list (for IRE closure rate)
   // so they're computed after the analyze stage.
   const discoursePatterns = computeDiscoursePatterns(transcription.segments, rawInsights);
+  const studentReasoning = computeStudentReasoning(transcription.segments, rawInsights);
+  const academicLanguage = computeAcademicLanguage(teacherSegments);
 
   const { summary, highlightedMoments, reflectionPrompts } = await generateReport({
     insights: rawInsights,
@@ -73,6 +76,8 @@ export async function processLesson(data: {
     intent: (recording?.intent as import("@coachline/shared").LessonIntent | null) ?? null,
     participationDistribution,
     discoursePatterns,
+    studentReasoning,
+    academicLanguage,
   });
 
   // Stage 5: Persist everything in a transaction
@@ -152,11 +157,16 @@ function computeGoalMetric(
     case "praise_ratio":
       return summary.praise?.praiseToCorrectionRatio ?? null;
     case "vocab_match": {
-      // Distance from teacher target grade (0 = on target; positive = talking
-      // above grade level; negative = below). Store absolute delta so goal
-      // progress trends toward 0.
       const d = summary.vocabGradeLevel?.deltaVsTarget;
       return typeof d === "number" ? d : null;
+    }
+    case "equity_of_voice":
+      return summary.participationDistribution?.giniCoefficient ?? null;
+    case "dialogue_quality":
+      return summary.discoursePatterns?.ireClosureRate ?? null;
+    case "lesson_clarity": {
+      const ll = summary.lessonLaunch;
+      return ll !== null ? ll.score : null;
     }
     default:
       return null;
