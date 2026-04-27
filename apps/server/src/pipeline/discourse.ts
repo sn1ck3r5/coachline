@@ -1,8 +1,24 @@
 import type {
   ParticipationDistribution,
   DiscoursePatterns,
+  StudentReasoningResult,
   TranscriptSegment,
 } from "@coachline/shared";
+
+const REASONING_PATTERNS = [
+  /\bbecause\b/i,
+  /\bso\b/i,
+  /\btherefore\b/i,
+  /\bsince\b/i,
+  /\bthat means\b/i,
+  /\bwhich means\b/i,
+  /\bthe text says\b/i,
+  /\bin the diagram\b/i,
+  /\bi know because\b/i,
+  /\bi think.{1,30}because\b/i,
+  /\bif.{1,30}then\b/i,
+  /\bevidence\b/i,
+];
 
 interface DiarizedSegment {
   speaker: number;
@@ -163,4 +179,49 @@ function computeIreClosureRate(
 
   if (withResponse === 0) return null;
   return Math.round((ireCloses / withResponse) * 1000) / 1000;
+}
+
+export function computeStudentReasoning(
+  segments: TranscriptSegment[],
+  insights: RawInsight[]
+): StudentReasoningResult {
+  const studentSegments = segments.filter((s) => s.speaker === "student");
+  const totalStudentTurnCount = studentSegments.length;
+
+  if (totalStudentTurnCount === 0) {
+    return { reasoningTurnCount: 0, totalStudentTurnCount: 0, reasoningRatio: null, topTriggeringMoveType: null };
+  }
+
+  const uptakes = insights.filter((i) => i.type === "uptake");
+  const triggerCounts = new Map<string, number>();
+  let reasoningTurnCount = 0;
+
+  for (const seg of studentSegments) {
+    const isReasoning = REASONING_PATTERNS.some((p) => p.test(seg.text));
+    if (!isReasoning) continue;
+
+    reasoningTurnCount++;
+
+    const preceding = uptakes
+      .filter((u) => u.endMs <= seg.startMs && seg.startMs - u.endMs < 10_000)
+      .sort((a, b) => b.endMs - a.endMs)[0];
+
+    if (preceding) {
+      const moveType = (preceding.metadata as { uptakeType?: string }).uptakeType ?? "unknown";
+      triggerCounts.set(moveType, (triggerCounts.get(moveType) ?? 0) + 1);
+    }
+  }
+
+  let topTriggeringMoveType: string | null = null;
+  let topCount = 0;
+  for (const [type, count] of triggerCounts) {
+    if (count > topCount) { topCount = count; topTriggeringMoveType = type; }
+  }
+
+  return {
+    reasoningTurnCount,
+    totalStudentTurnCount,
+    reasoningRatio: Math.round((reasoningTurnCount / totalStudentTurnCount) * 1000) / 1000,
+    topTriggeringMoveType,
+  };
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   computeParticipationDistribution,
   computeDiscoursePatterns,
+  computeStudentReasoning,
 } from "../../src/pipeline/discourse";
 import type { TranscriptSegment } from "@coachline/shared";
 
@@ -173,5 +174,51 @@ describe("computeDiscoursePatterns", () => {
     ];
     const result = computeDiscoursePatterns(segments, insights);
     expect(result.ireClosureRate).toBeNull(); // 0 questions with responses
+  });
+});
+
+// ── computeStudentReasoning ───────────────────────────────────────────────────
+
+describe("computeStudentReasoning", () => {
+  it("returns null ratio when no student segments", () => {
+    const result = computeStudentReasoning([], []);
+    expect(result.totalStudentTurnCount).toBe(0);
+    expect(result.reasoningRatio).toBeNull();
+    expect(result.topTriggeringMoveType).toBeNull();
+  });
+
+  it("counts turns containing causal language", () => {
+    const segments = [
+      seg("student", 0, 3000, "I think it's 4"),
+      seg("student", 3000, 7000, "because the denominator stays the same"),
+      seg("student", 7000, 10000, "right"),
+    ];
+    const result = computeStudentReasoning(segments, []);
+    expect(result.totalStudentTurnCount).toBe(3);
+    expect(result.reasoningTurnCount).toBe(1);
+    expect(result.reasoningRatio).toBeCloseTo(1 / 3, 2);
+  });
+
+  it("detects 'therefore', 'since', 'the text says' as reasoning markers", () => {
+    const segments = [
+      seg("student", 0, 4000, "therefore we need to find the LCM"),
+      seg("student", 5000, 8000, "since both are even"),
+      seg("student", 9000, 12000, "the text says they migrate"),
+    ];
+    const result = computeStudentReasoning(segments, []);
+    expect(result.reasoningTurnCount).toBe(3);
+  });
+
+  it("identifies top triggering move type from preceding uptake insights", () => {
+    const segments = [
+      seg("student", 2000, 5000, "because the numerators add"),
+      seg("student", 8000, 11000, "so we multiply both sides"),
+    ];
+    const insights = [
+      { type: "uptake", startMs: 0, endMs: 2000, durationMs: 2000, metadata: { uptakeType: "press" } },
+      { type: "uptake", startMs: 6000, endMs: 8000, durationMs: 2000, metadata: { uptakeType: "press" } },
+    ];
+    const result = computeStudentReasoning(segments, insights);
+    expect(result.topTriggeringMoveType).toBe("press");
   });
 });
