@@ -96,6 +96,26 @@ For each distinct teacher speaking turn that is NOT primarily a question (those 
 
 metadata: { text: first ~120 chars of the turn }.
 
+==== LESSON LAUNCH ====
+
+Scan only the FIRST 5 MINUTES of teacher speech (startMs < 300000) for the following. Emit AT MOST ONE lesson_launch insight (even if multiple elements are found):
+- metadata.learningIntention: { detected: boolean, timestampMs: number|null, quote: string|null }
+  True if teacher explicitly states what students will learn. ("Today we're working on...", "Our goal today is...", "By the end you'll be able to...")
+- metadata.successCriteria: { detected: boolean, timestampMs: number|null, quote: string|null }
+  True if teacher tells students HOW they'll know they learned it. ("You'll know you've got it when...", "Success looks like...")
+- metadata.relevanceHook: { detected: boolean, timestampMs: number|null, quote: string|null }
+  True if teacher connects content to prior learning or real-world relevance. ("This builds on...", "You'll use this when...", "Last time we...")
+If a lesson_launch element is not present, set detected: false and timestampMs/quote: null.
+startMs/endMs for the insight: span of first 5 minutes (0–300000) or actual lesson duration if shorter.
+
+==== QUESTION FOCUSING TYPE ====
+
+For each question_open insight, add a field to metadata:
+- metadata.focusingType: "focusing" | "funneling"
+  - "focusing": genuinely invites student reasoning, has no predetermined answer the teacher is fishing for. ("What do you notice?", "What are you thinking?", "What would happen if...?", "How did you approach that?")
+  - "funneling": leads student toward the teacher's predetermined answer, teacher already knows what they want to hear. ("So we'd multiply, right?", "What's the next step after we find the LCM?", "Isn't it true that...?")
+  Default to "focusing" when uncertain.
+
 ==== OUTPUT ====
 
 Return ONLY a JSON array of insight objects. No markdown fences. No prose.`;

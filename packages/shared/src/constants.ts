@@ -5,6 +5,7 @@ export const INSIGHT_TYPES = [
   "long_student_talk", "short_student_response",
   "praise_specific", "praise_general", "correction",
   "teacher_instruct", "teacher_explain", "teacher_feedback", "teacher_manage",
+  "lesson_launch",
 ] as const;
 export type InsightType = (typeof INSIGHT_TYPES)[number];
 
