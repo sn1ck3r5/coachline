@@ -74,7 +74,12 @@ export function DokStackedBarChart({ progress, target }: GoalChartProps) {
               y={100 - target.value}
               stroke="#fbbf24"
               strokeDasharray="4 4"
-              label={{ value: target.label, fill: "#fbbf24", fontSize: 11, position: "right" }}
+              label={{
+                value: `Above this line: ${target.label}`,
+                fill: "#fbbf24",
+                fontSize: 11,
+                position: "right",
+              }}
             />
           )}
         </BarChart>

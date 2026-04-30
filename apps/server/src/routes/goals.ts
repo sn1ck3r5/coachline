@@ -42,28 +42,21 @@ export default async function goalRoutes(fastify: FastifyInstance) {
     const rows = await getPrisma().goalProgress.findMany({
       where: { goalId: goal.id, goal: { userId: request.userId } },
       orderBy: { createdAt: "asc" },
-      include: {
-        report: {
-          select: {
-            summary: true,
-            createdAt: true,
-            recording: { select: { title: true, recordedAt: true } },
-          },
-        },
-      },
+      include: { report: { select: { summary: true } } },
     });
 
-    return rows.map((row) => ({
-      id: row.id,
-      goalId: row.goalId,
-      reportId: row.reportId,
-      value: row.value,
-      createdAt: row.createdAt.toISOString(),
-      payload: buildPayload(
-        goal.practiceArea as PracticeArea,
-        row.report.summary as unknown as ReportSummary
-      ),
-      report: row.report,
-    }));
+    return rows.map((row) => {
+      const summary = row.report?.summary
+        ? (row.report.summary as unknown as ReportSummary)
+        : null;
+      return {
+        id: row.id,
+        goalId: row.goalId,
+        reportId: row.reportId,
+        value: row.value,
+        createdAt: row.createdAt.toISOString(),
+        payload: buildPayload(goal.practiceArea as PracticeArea, summary),
+      };
+    });
   });
 }

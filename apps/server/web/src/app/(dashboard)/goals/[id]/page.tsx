@@ -40,11 +40,10 @@ export default function GoalDetailPage() {
       try {
         const [g, p] = await Promise.all([
           api.get<Goal>(`/goals/${params.id}`),
-          api.get<GoalProgress[] | { progress: GoalProgress[] }>(`/goals/${params.id}/progress`),
+          api.get<GoalProgress[]>(`/goals/${params.id}/progress`),
         ]);
         setGoal(g);
-        const list = Array.isArray(p) ? p : (p.progress ?? []);
-        setProgress(list);
+        setProgress(p);
       } catch {
         setError("Failed to load goal");
       } finally {
