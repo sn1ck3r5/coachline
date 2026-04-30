@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { PrismaClient } from "@prisma/client";
 import { CreateGoalSchema, UpdateGoalSchema } from "@coachline/shared";
+import type { PracticeArea, ReportSummary } from "@coachline/shared";
+import { buildPayload } from "./goal-progress-payload";
 import { logAudit } from "../middleware/audit";
 
 let _prisma: PrismaClient;
@@ -32,11 +34,36 @@ export default async function goalRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get<{ Params: { id: string } }>("/:id/progress", async (request, reply) => {
-    const goal = await getPrisma().goal.findFirst({ where: { id: request.params.id, userId: request.userId } });
-    if (!goal) return reply.status(404).send({ error: "not_found", message: "Goal not found" });
-    return getPrisma().goalProgress.findMany({
-      where: { goalId: goal.id }, orderBy: { createdAt: "asc" },
-      include: { report: { select: { createdAt: true, recording: { select: { title: true, recordedAt: true } } } } },
+    const goal = await getPrisma().goal.findFirst({
+      where: { id: request.params.id, userId: request.userId },
     });
+    if (!goal) return reply.status(404).send({ error: "not_found", message: "Goal not found" });
+
+    const rows = await getPrisma().goalProgress.findMany({
+      where: { goalId: goal.id, goal: { userId: request.userId } },
+      orderBy: { createdAt: "asc" },
+      include: {
+        report: {
+          select: {
+            summary: true,
+            createdAt: true,
+            recording: { select: { title: true, recordedAt: true } },
+          },
+        },
+      },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      goalId: row.goalId,
+      reportId: row.reportId,
+      value: row.value,
+      createdAt: row.createdAt.toISOString(),
+      payload: buildPayload(
+        goal.practiceArea as PracticeArea,
+        row.report.summary as unknown as ReportSummary
+      ),
+      report: row.report,
+    }));
   });
 }
