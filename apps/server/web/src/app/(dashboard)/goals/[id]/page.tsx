@@ -2,23 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { api } from "@/lib/api";
 import type { Goal, GoalProgress } from "@coachline/shared";
+import { resolveGoalChart } from "./lib/goal-detail-charts";
 
 const AREA_LABELS: Record<string, string> = {
   wait_time: "Wait Time",
   open_questions: "Open Questions",
   student_talk_ratio: "Student Talk Ratio",
   uptake: "Uptake",
+  dok_mix: "DOK Mix",
+  praise_ratio: "Praise Ratio",
+  vocab_match: "Vocab Match",
+  equity_of_voice: "Equity of Voice",
+  dialogue_quality: "Dialogue Quality",
+  lesson_clarity: "Lesson Clarity",
   custom: "Custom",
 };
 
@@ -27,11 +25,6 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "Completed",
   paused: "Paused",
 };
-
-interface ChartPoint {
-  date: string;
-  value: number;
-}
 
 export default function GoalDetailPage() {
   const params = useParams<{ id: string }>();
@@ -47,10 +40,11 @@ export default function GoalDetailPage() {
       try {
         const [g, p] = await Promise.all([
           api.get<Goal>(`/goals/${params.id}`),
-          api.get<{ progress: GoalProgress[] }>(`/goals/${params.id}/progress`),
+          api.get<GoalProgress[] | { progress: GoalProgress[] }>(`/goals/${params.id}/progress`),
         ]);
         setGoal(g);
-        setProgress(p.progress ?? []);
+        const list = Array.isArray(p) ? p : (p.progress ?? []);
+        setProgress(list);
       } catch {
         setError("Failed to load goal");
       } finally {
@@ -59,7 +53,7 @@ export default function GoalDetailPage() {
     })();
   }, [params.id]);
 
-  const chartData: ChartPoint[] = progress.map((p) => ({
+  const chartPoints = progress.map((p) => ({
     date: new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     value: p.value,
   }));
@@ -103,9 +97,10 @@ export default function GoalDetailPage() {
       ? latestValue - firstValue
       : null;
 
+  const { Component: Chart, target } = resolveGoalChart(goal.practiceArea);
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-start gap-4">
         <button
           onClick={() => router.back()}
@@ -134,7 +129,6 @@ export default function GoalDetailPage() {
         </span>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5 text-center">
           <p className="text-2xl font-bold text-white">{progress.length}</p>
@@ -158,56 +152,20 @@ export default function GoalDetailPage() {
         </div>
       </div>
 
-      {/* Chart */}
       <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-5">
-          Progress Over Time
-        </h2>
-        {chartData.length < 2 ? (
-          <div className="h-48 flex items-center justify-center text-gray-500 text-sm">
-            Not enough data yet — complete more lessons to see a trend
-          </div>
-        ) : (
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#1a1a1a",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 8,
-                    color: "#fff",
-                    fontSize: 12,
-                  }}
-                  cursor={{ stroke: "rgba(139,92,246,0.3)" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: "#8b5cf6", strokeWidth: 0 }}
-                  activeDot={{ r: 5, fill: "#8b5cf6" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        <div className="flex items-baseline justify-between mb-5">
+          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
+            Progress Over Time
+          </h2>
+          {target && (
+            <span className="text-xs text-gray-500">Research target: {target.label}</span>
+          )}
+        </div>
+        <div className="h-56">
+          <Chart points={chartPoints} progress={progress} target={target} />
+        </div>
       </div>
 
-      {/* Status controls */}
       <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
         <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">
           Update Status
