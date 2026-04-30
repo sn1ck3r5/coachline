@@ -61,7 +61,7 @@ export type {
 export type { Insight } from "./types/insight";
 
 // Types — goal
-export type { Goal, GoalProgress } from "./types/goal";
+export type { Goal, GoalProgress, GoalProgressPayload } from "./types/goal";
 
 // Types — api
 export type {
