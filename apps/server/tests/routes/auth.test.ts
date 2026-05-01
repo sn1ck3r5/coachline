@@ -1,6 +1,13 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { buildApp } from "../setup";
 import type { FastifyInstance } from "fastify";
+
+vi.mock("@prisma/client", () => {
+  class PrismaClient {
+    user = { findUnique: vi.fn().mockResolvedValue(null) };
+  }
+  return { PrismaClient };
+});
 
 describe("Auth routes", () => {
   let app: FastifyInstance;
